@@ -1,4 +1,3 @@
-// Apply the java plugin to add support for Java & add IntelliJ plugin
 plugins {
 	java
 	idea
@@ -48,7 +47,6 @@ dependencies {
 	implementation("org.joml", "joml", project.extra["jomlVersion"] as String)
 }
 
-//create a single Jar with all dependencies
 task<Jar>("deploy") {
 	manifest {
 		attributes(Pair("Main-Class", "astechzgo.luminescent.main.Main"))
@@ -80,29 +78,27 @@ tasks.processResources {
 apply(from = "shaders.gradle.kts")
 
 // Copy to base directory
-task("copyToRoot") {
-	doLast {
-		copy {
-			duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-			from("build/libs/Luminescent.jar")
-			into(".")
-		}
-	}
+task<Copy>("copyToRoot") {
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from(tasks.findByName("deploy"))
+	into(projectDir)
+	doNotTrackState("Final copy outside of build directory")
 }
 
 task("run") {
 	doLast {
 		javaexec {
-			args = listOf("Luminescent.jar")
+			classpath("Luminescent.jar")
 		}
 	}
 }.dependsOn("deploy")
 
-tasks.compileJava {
-	sourceCompatibility = "17"
-	targetCompatibility = "17"
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
 }
 
 tasks.wrapper {
-	gradleVersion = "7.3.3"
+	gradleVersion = "8.7"
 }
