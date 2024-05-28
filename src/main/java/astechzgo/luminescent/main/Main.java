@@ -14,8 +14,8 @@ public class Main
 {
 	public static void main(String[] args)
 	{
-		LoggingUtils.configureLogger();
 		SystemUtils.doOSSetUp();
+		LoggingUtils.configureLogger();
 		SystemUtils.setUpDebug();
 		
 		new Main().Run();
