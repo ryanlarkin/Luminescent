@@ -2405,10 +2405,10 @@ public class Vulkan {
     private void cleanupAllocator() {
         if(Luminescent.DEBUG) {
             try(MemoryStack stack = MemoryStack.stackPush()) {
-                VmaStats stats = VmaStats.malloc(stack);
-                Vma.vmaCalculateStats(allocator, stats);
-                if(stats.total().allocationCount() != 0) {
-                    System.out.println("VMA Error: " + stats.total().allocationCount() + " unfreed buffers/image(s)");
+                VmaTotalStatistics stats = VmaTotalStatistics.malloc(stack);
+                Vma.vmaCalculateStatistics(allocator, stats);
+                if(stats.total().statistics().allocationCount() != 0) {
+                    System.out.println("VMA Error: " + stats.total().statistics().allocationCount() + " unfreed buffers/image(s)");
                 }
 
             }
