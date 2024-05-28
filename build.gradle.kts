@@ -47,7 +47,7 @@ dependencies {
 	implementation("org.joml", "joml", project.extra["jomlVersion"] as String)
 }
 
-task<Jar>("deploy") {
+tasks.jar {
 	manifest {
 		attributes(Pair("Main-Class", "astechzgo.luminescent.main.Main"))
 	}
@@ -56,8 +56,7 @@ task<Jar>("deploy") {
 		duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 		configurations.runtimeClasspath.get().map { if(it.isDirectory) it else zipTree(it) }
 	})
-	with(tasks["jar"] as CopySpec)
-}.finalizedBy("copyToRoot")
+}
 
 // Don't add resources to JAR again
 sourceSets {
@@ -77,21 +76,13 @@ tasks.processResources {
 
 apply(from = "shaders.gradle.kts")
 
-// Copy to base directory
-task<Copy>("copyToRoot") {
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-	from(tasks.findByName("deploy"))
-	into(projectDir)
-	doNotTrackState("Final copy outside of build directory")
-}
-
 task("run") {
 	doLast {
 		javaexec {
-			classpath("Luminescent.jar")
+			classpath(tasks.jar)
 		}
 	}
-}.dependsOn("deploy")
+}.dependsOn(tasks.jar)
 
 java {
 	toolchain {
