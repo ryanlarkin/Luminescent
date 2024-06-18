@@ -102,7 +102,7 @@ public class LoggingUtils {
 			    else {
 					String string = new String(b);
 					if (!string.trim().isEmpty())
-						LOGGER.log(level, string);
+						LOGGER.log(level, string.stripTrailing());
 				}
 			}
 
@@ -111,7 +111,7 @@ public class LoggingUtils {
 				else {
 					String string = new String(b, off, len);
 					if (!string.trim().isEmpty())
-						LOGGER.log(level, string);
+						LOGGER.log(level, string.stripTrailing());
 				}
 			}
 

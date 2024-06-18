@@ -8,7 +8,6 @@ import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +35,8 @@ import astechzgo.luminescent.textures.TexturePacker;
 import astechzgo.luminescent.utils.DisplayUtils;
 
 public class Vulkan {
+
+    private static final int VK_API_VERSION = VK13.VK_API_VERSION_1_3;
     
     private static final Vulkan vulkanInstance = new Vulkan();
     
@@ -249,7 +250,7 @@ public class Vulkan {
                 .device(device)
                 .pVulkanFunctions(VmaVulkanFunctions.calloc(stack).set(instance, device))
                 .instance(instance)
-                .vulkanApiVersion(VK12.VK_API_VERSION_1_2);
+                .vulkanApiVersion(VK_API_VERSION);
 
             PointerBuffer allocatorAddress = stack.mallocPointer(1);
             if(Vma.vmaCreateAllocator(allocatorCreateInfo, allocatorAddress) != VK10.VK_SUCCESS) {
@@ -1393,8 +1394,7 @@ public class Vulkan {
         }
         
         try(MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer queuePriority = stack.mallocFloat(1).put(1.0f);
-            queuePriority.flip();
+            FloatBuffer queuePriority = stack.floats(1.0f);
             
             VkPhysicalDeviceFeatures deviceFeatures = VkPhysicalDeviceFeatures.calloc(stack)
                 .samplerAnisotropy(true);
@@ -1479,12 +1479,11 @@ public class Vulkan {
                 int score = rateSuitability(device);
                 candidates.put(score, device);
             }
-            
-            int bestScore = candidates.keySet().stream().sorted(Comparator.reverseOrder()).findFirst().get();
-            if(bestScore > 0) {
-                physicalDevice = candidates.get(bestScore);
-            }
-            
+
+            physicalDevice = candidates.entrySet().stream()
+                    .max(Map.Entry.comparingByKey())
+                    .map(Map.Entry::getValue).orElse(null);
+
             if(physicalDevice == null) {
                 throw new RuntimeException("failed to find suitable GPU!");
             }
@@ -1497,14 +1496,37 @@ public class Vulkan {
             }
         }
     }
-    
+
     private int rateSuitability(VkPhysicalDevice device) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VkPhysicalDeviceProperties deviceProperties = VkPhysicalDeviceProperties.malloc(stack);
-            VkPhysicalDeviceFeatures deviceFeatures = VkPhysicalDeviceFeatures.malloc(stack);
             VK10.vkGetPhysicalDeviceProperties(device, deviceProperties);
-            VK10.vkGetPhysicalDeviceFeatures(device, deviceFeatures);
-            
+
+            VkPhysicalDeviceFeatures deviceFeatures10;
+            VkPhysicalDeviceVulkan11Features deviceFeatures11 = VkPhysicalDeviceVulkan11Features.calloc(stack).sType$Default();
+            VkPhysicalDeviceVulkan12Features deviceFeatures12 = VkPhysicalDeviceVulkan12Features.calloc(stack).sType$Default();
+            VkPhysicalDeviceVulkan13Features deviceFeatures13 = VkPhysicalDeviceVulkan13Features.calloc(stack).sType$Default();
+            if (deviceProperties.apiVersion() >= VK11.VK_API_VERSION_1_1) {
+                VkPhysicalDeviceFeatures2 deviceFeatures2 = VkPhysicalDeviceFeatures2.malloc(stack)
+                        .sType$Default()
+                        .pNext(VK10.VK_NULL_HANDLE)
+                        .pNext(deviceFeatures11);
+
+                deviceFeatures10 = deviceFeatures2.features();
+
+                if (deviceProperties.apiVersion() >= VK12.VK_API_VERSION_1_2) {
+                    deviceFeatures2.pNext(deviceFeatures12);
+                }
+
+                if (deviceProperties.apiVersion() >= VK13.VK_API_VERSION_1_3) {
+                    deviceFeatures2.pNext(deviceFeatures13);
+                }
+                VK11.vkGetPhysicalDeviceFeatures2(device, deviceFeatures2);
+            } else {
+                deviceFeatures10 = VkPhysicalDeviceFeatures.malloc(stack);
+                VK11.vkGetPhysicalDeviceFeatures(device, deviceFeatures10);
+            }
+
             int score = 0;
             
             if(deviceProperties.deviceType() == VK10.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
@@ -1513,7 +1535,7 @@ public class Vulkan {
             
             score += deviceProperties.limits().maxImageDimension2D();
             
-            if(!deviceFeatures.geometryShader()) {
+            if(!deviceFeatures10.geometryShader()) {
                 score = 0;
             }
             
@@ -1538,7 +1560,15 @@ public class Vulkan {
                 score = 0;
             }
             
-            if(!deviceFeatures.samplerAnisotropy()) {
+            if(!deviceFeatures10.samplerAnisotropy()) {
+                score = 0;
+            }
+
+            if (!deviceFeatures12.bufferDeviceAddress() || !deviceFeatures12.descriptorIndexing()) {
+                score = 0;
+            }
+
+            if (!deviceFeatures13.dynamicRendering() || !deviceFeatures13.synchronization2()) {
                 score = 0;
             }
             
@@ -1762,7 +1792,7 @@ public class Vulkan {
                 .applicationVersion(VK10.VK_MAKE_VERSION(1, 0, 0))
                 .pEngineName(stack.UTF8("No Engine"))
                 .engineVersion(VK10.VK_MAKE_VERSION(1, 0, 0))
-                .apiVersion(VK12.VK_API_VERSION_1_2);
+                .apiVersion(VK_API_VERSION);
 
             VkInstanceCreateInfo createInfo = VkInstanceCreateInfo.calloc(stack)
                 .sType$Default()
@@ -1813,7 +1843,7 @@ public class Vulkan {
 
     private void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT createInfo) {
         createInfo.sType$Default()
-                .messageSeverity(EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                .messageSeverity(EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
                         | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
                 .messageType(EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
                         | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)

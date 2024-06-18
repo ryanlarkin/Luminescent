@@ -34,7 +34,7 @@ import org.lwjgl.system.MemoryUtil;
 
 public class Luminescent
 {
-	public static final boolean DEBUG = false;
+	public static final boolean DEBUG = true;
     
 	public static Player thePlayer;
 	
