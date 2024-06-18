@@ -1,7 +1,5 @@
 package astechzgo.luminescent.utils;
 
-import org.lwjgl.system.Configuration;
-
 import static astechzgo.luminescent.utils.SystemUtils.newFile;
 
 import java.io.File;
@@ -29,18 +27,15 @@ public class LoggingUtils {
 
 		@Override
 		public String format(LogRecord record) {
-			boolean debug = false;
-			if(record.getLevel() == Level.CONFIG) {
-				debug = true;
-			}
-			
-			SimpleDateFormat sdf = new SimpleDateFormat("[HH:mm:ss]");
+			boolean debug = record.getLevel() == Level.CONFIG;
+
+            SimpleDateFormat sdf = new SimpleDateFormat("[HH:mm:ss]");
 			Date dt = new Date(record.getMillis());
 			String S = sdf.format(dt);
 			
 			String threadName = null;
 			for (Thread t : Thread.getAllStackTraces().keySet()) {
-				if (t.getId()==record.getThreadID()) {
+				if (t.threadId() == record.getLongThreadID()) {
 					threadName = t.getName();
 				}
 			}
