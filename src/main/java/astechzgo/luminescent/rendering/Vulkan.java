@@ -2326,18 +2326,17 @@ public class Vulkan {
                 VK10.vkGetImageSubresourceLayout(device, firstImageAddress[0], subresource, subresourceLayout);
                 Vma.vmaMapMemory(allocator, firstImageAllocationAddress[0], data);
             }
-                ByteBuffer buffer = MemoryUtil.memByteBuffer(data.get() + subresourceLayout.offset(), 4*swapChainExtent.width()*swapChainExtent.height());
+                ByteBuffer buffer = MemoryUtil.memByteBuffer(data.get() + subresourceLayout.offset(), (int)subresourceLayout.size());
 
-                ByteBuffer bufferData = MemoryUtil.memAlloc(3*swapChainExtent.width()*swapChainExtent.height());
-
-                while(buffer.hasRemaining()) {
-                    bufferData.put(buffer.get());
-                    bufferData.put(buffer.get());
-                    bufferData.put(buffer.get());
-                    buffer.position(buffer.position() + 1);
+                int srcChannels = 4, dstChannels = 3;
+                ByteBuffer bufferData = MemoryUtil.memAlloc(dstChannels*swapChainExtent.width()*swapChainExtent.height());
+                for (int row = 0; row < swapChainExtent.height(); row++) {
+                    for (int col = 0; col < swapChainExtent.width(); col++) {
+                        int srcPos = row * (int) subresourceLayout.rowPitch() + srcChannels * col;
+                        int dstPos = swapChainExtent.width() * dstChannels * row + col * dstChannels;
+                        bufferData.put(dstPos, buffer, srcPos, dstChannels);
+                    }
                 }
-
-                bufferData.flip();
             if(twoSteps) {
                 Vma.vmaUnmapMemory(allocator, secondImageAllocationAddress[0]);
             }
