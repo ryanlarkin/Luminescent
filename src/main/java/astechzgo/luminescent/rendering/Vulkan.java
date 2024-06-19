@@ -2203,16 +2203,16 @@ public class Vulkan {
             long srcImage = swapChainImages[imageIndex];
 
             if(twoSteps) {
-                createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_SRGB,
+                createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_UNORM,
                         VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_IMAGE_LAYOUT_UNDEFINED, VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                         VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, firstImageAddress, firstImageAllocationAddress);
 
-                createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_SRGB,
+                createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_UNORM,
                         VK10.VK_IMAGE_TILING_LINEAR, VK10.VK_IMAGE_LAYOUT_UNDEFINED, VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                         VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, secondImageAddress, secondImageAllocationAddress);
             }
             else {
-                createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_SRGB,
+                createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_UNORM,
                         VK10.VK_IMAGE_TILING_LINEAR, VK10.VK_IMAGE_LAYOUT_UNDEFINED, VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                         VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, firstImageAddress, firstImageAllocationAddress);
             }
