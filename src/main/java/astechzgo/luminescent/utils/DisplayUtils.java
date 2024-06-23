@@ -27,7 +27,6 @@ public class DisplayUtils {
 	private static boolean displayFullscreen = false;
 	
 	private static DisplayMode mode = new DisplayMode(848, 477);
-	private static DisplayMode desktopDisplayMode = new DisplayMode(848, 477);
 	
 	private static int displayWidth = 0;
 	private static int displayHeight = 0;
@@ -45,9 +44,6 @@ public class DisplayUtils {
 
 	public static int widthOffset;
 	public static int heightOffset;
-	
-	public static int oldGameWidth = getDisplayWidth() - widthOffset * 2;
-	public static int oldGameHeight = getDisplayHeight() - heightOffset * 2;
 	
 	public static int displayX;
 	public static int displayY;
@@ -74,38 +70,53 @@ public class DisplayUtils {
 			heightOffset = 0;
 	}
 	public static String displayTitle = "Luminescent";
-	
-	
-	/**
-	 * Set the display mode to be used
-	 * 
-	 * @param width
-	 *            The width of the display required
-	 * @param height
-	 *            The height of the display required
-	 * @param fullscreen
-	 *            True if we want fullscreen mode
-	 */
-	public static void setDisplayMode(int width, int height, boolean fullscreen) {
-		if(fullscreen && !displayFullscreen) {
-			long[] monitors = getMonitors();
-			long actualMonitor = monitors[currentMonitorIdx(monitors)];
 
-			if(actualMonitor != monitor) {
-				changeMonitor(actualMonitor);
-			}
+	private static void updateMonitor() {
+		long[] monitors = getMonitors();
+		long actualMonitor = monitors[currentMonitorIdx(monitors)];
+
+		if(actualMonitor != monitor) {
+			changeMonitor(actualMonitor);
 		}
+	}
 
+	private static void updateDisplayInfo(boolean fullscreen) {
 		int monitorWidthOffset = getMonitorOffsetWidth(DisplayUtils.monitor);
 		int monitorHeightOffset = getMonitorOffsetHeight(DisplayUtils.monitor);
 
-		displayWidth = width;
-		displayHeight = height;
+		widthOffset = Math.max(0, (displayWidth - (displayHeight / 9 * 16)) / 2);
+		if(widthOffset == 0)
+			heightOffset = Math.max(0, (displayHeight - (displayWidth / 16 * 9)) / 2);
+		else
+			heightOffset = 0;
+
 		displayX = (DisplayUtils.monitorWidth / 2) - (displayWidth / 2) + monitorWidthOffset;
 		displayY = (DisplayUtils.monitorHeight / 2) - (displayHeight / 2) + monitorHeightOffset;
 
 		DisplayUtils.displayFullscreen = fullscreen;
-		GLFW.glfwSetWindowMonitor(handle, fullscreen ? monitor : NULL, displayX, displayY, width, height, monitorRefreshRate);
+	}
+
+	public static void setFullscreen() {
+		if(!displayFullscreen) updateMonitor();
+
+		displayWidth = monitorWidth;
+		displayHeight = monitorHeight;
+
+		updateDisplayInfo(true);
+
+		GLFW.glfwSetWindowMonitor(handle, monitor, displayX, displayY, monitorWidth, monitorHeight, monitorRefreshRate);
+	}
+
+	public static void setWindowedMode(int width, int height) {
+		if(!displayFullscreen) updateMonitor();
+
+		displayWidth = width;
+		displayHeight = height;
+
+		updateDisplayInfo(false);
+
+		GLFW.glfwRestoreWindow(handle);
+		GLFW.glfwSetWindowMonitor(handle, NULL, displayX, displayY, width, height, monitorRefreshRate);
 	}
 
 	/**
@@ -164,21 +175,10 @@ public class DisplayUtils {
 	}
 	
 	public static void create() {
-		long monitor = glfwGetPrimaryMonitor();
-		GLFWVidMode vidmode = glfwGetVideoMode(monitor);
-
-		int monitorWidth = vidmode.width();
-		int monitorHeight = vidmode.height();
-		int monitorBitPerPixel = vidmode.redBits() + vidmode.greenBits() + vidmode.redBits();
-		int monitorRefreshRate = vidmode.refreshRate();
-		
-		desktopDisplayMode = new DisplayMode(monitorWidth, monitorHeight, monitorBitPerPixel, monitorRefreshRate);
-
 		glfwDefaultWindowHints();
 		glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW.GLFW_NO_API);
 		glfwWindowHint(GLFW_VISIBLE, GLFW.GLFW_FALSE);
-		boolean displayResizable = true;
-		glfwWindowHint(GLFW_RESIZABLE, displayResizable ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW.GLFW_TRUE);
 		
 		handle = glfwCreateWindow(mode.WIDTH, mode.HEIGHT,  displayTitle, NULL, NULL);
 		if ( handle == 0L )
@@ -358,8 +358,7 @@ public class DisplayUtils {
 		changeMonitor(monitors[nextMonitorIdx]);
 
 		if(displayFullscreen) {
-			setDisplayMode(DisplayUtils.vidmode.width(),
-					DisplayUtils.vidmode.height(), true);
+			setFullscreen();
 		}
 
 		int monitorOffsetWidth, monitorOffsetHeight;
@@ -424,9 +423,7 @@ public class DisplayUtils {
 	};
 	
 	public static void changeSize() {
-		int width = 0;
-		int height = 0;
-		
+		int width, height;
 		try(MemoryStack stack = MemoryStack.stackPush()) {
 			IntBuffer w = stack.mallocInt(1);
 			IntBuffer h = stack.mallocInt(1);

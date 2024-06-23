@@ -1,7 +1,7 @@
 package astechzgo.luminescent.keypress;
 
 import static astechzgo.luminescent.keypress.Key.*;
-import static astechzgo.luminescent.utils.DisplayUtils.setDisplayMode;
+import static astechzgo.luminescent.utils.DisplayUtils.*;
 import static astechzgo.luminescent.utils.SystemUtils.newFile;
 
 import java.io.File;
@@ -26,12 +26,11 @@ public class KeyPressUtils {
 		}
 		if(KEYS_UTIL_FULLSCREEN.isKeyDownOnce()) {
 			if(DisplayUtils.isFullscreen()) {
-				setDisplayMode(848, 477, false);
+				setWindowedMode(848, 477);
 				KeyboardUtils.resetKeys();
 			}
 			else {
-				setDisplayMode(DisplayUtils.vidmode.width(),
-					DisplayUtils.vidmode.height(), true);
+				setFullscreen();
 				KeyboardUtils.resetKeys();
 			}
 		}
@@ -58,7 +57,7 @@ public class KeyPressUtils {
 			if(GLFW.glfwGetMonitors().capacity() > 1) {
 				DisplayUtils.nextMonitor();
 			}
-		    Vulkan.constructBuffers();
+			Vulkan.recreate();
 		}
 		if(KEYS_UTIL_TOGGLELIGHTING.isKeyDownOnce()) {
 			Vulkan.setDoLighting(!Vulkan.getDoLighting());

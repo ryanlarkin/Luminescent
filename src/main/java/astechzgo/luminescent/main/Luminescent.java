@@ -1,7 +1,5 @@
 package astechzgo.luminescent.main;
 
-import static astechzgo.luminescent.utils.DisplayUtils.setDisplayMode;
-
 import java.awt.*;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -31,6 +29,8 @@ import astechzgo.luminescent.utils.ControllerUtils;
 import astechzgo.luminescent.utils.DisplayUtils;
 import astechzgo.luminescent.worldloader.JSONWorldLoader;
 import org.lwjgl.system.MemoryUtil;
+
+import static astechzgo.luminescent.utils.DisplayUtils.*;
 
 public class Luminescent
 {
@@ -117,12 +117,11 @@ public class Luminescent
 
 		if(Constants.getConstantAsBoolean(Constants.WINDOW_FULLSCREEN))
 		{
-			setDisplayMode(DisplayUtils.vidmode.width(),
-					DisplayUtils.vidmode.height(), true);
+			setFullscreen();
 		}
 		else
 		{
-			setDisplayMode(848, 477, false);
+			setWindowedMode(848, 477);
 		}
 	}
 	

@@ -1288,7 +1288,7 @@ public class Vulkan {
 
             VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
             int presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-            VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+            VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, stack);
 
             int imageCount = swapChainSupport.capabilities.minImageCount() + 1;
             if(swapChainSupport.capabilities.maxImageCount() > 0 && imageCount > swapChainSupport.capabilities.maxImageCount()) {
@@ -1656,17 +1656,15 @@ public class Vulkan {
         return details;
     }
 
-    private VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR capabilities) {
+    private VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR capabilities, MemoryStack stack) {
         if(capabilities.currentExtent().width() != Integer.MAX_VALUE) {
             return capabilities.currentExtent();
         }
         else {
             int width = DisplayUtils.getDisplayWidth(), height = DisplayUtils.getDisplayHeight();
-            try(MemoryStack stack = MemoryStack.stackPush()) {
-                return VkExtent2D.malloc(stack)
-                    .width(Math.max(capabilities.minImageExtent().width(), Math.min(capabilities.maxImageExtent().width(), width)))
-                    .height(Math.max(capabilities.minImageExtent().height(), Math.min(capabilities.maxImageExtent().height(), height)));
-            }
+            return VkExtent2D.malloc(stack)
+                .width(Math.max(capabilities.minImageExtent().width(), Math.min(capabilities.maxImageExtent().width(), width)))
+                .height(Math.max(capabilities.minImageExtent().height(), Math.min(capabilities.maxImageExtent().height(), height)));
         }
     }
 
