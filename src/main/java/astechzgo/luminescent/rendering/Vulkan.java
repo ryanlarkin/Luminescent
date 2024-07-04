@@ -56,7 +56,7 @@ public class Vulkan {
     }
 
     public static void tick() {
-//        vulkanInstance.updateUniformBuffer(vulkanInstance.imageIndex);
+        vulkanInstance.updateUniformBuffer(vulkanInstance.imageIndex);
         vulkanInstance.drawFrame();
     }
 
@@ -227,19 +227,21 @@ public class Vulkan {
         createMemoryAllocator();
         createSwapChain();
         createImageViews();
-//        createDescriptorSetLayout();
+        createDescriptorSetLayout();
         ShaderList.initShaderList();
-//        createGraphicsPipeline();
+        createGraphicsPipeline();
         createCommandPool();
-        createCommandBuffers();
-//        createTextureSampler();
+        createTextureSampler();
         createSyncObjects();
     }
 
     private void createMemoryAllocator() {
+        int flags = 0;
+        flags |= device.getCapabilities().VK_KHR_dedicated_allocation ? Vma.VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0;
+        flags |= Vma.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VmaAllocatorCreateInfo allocatorCreateInfo = VmaAllocatorCreateInfo.calloc(stack)
-                .flags(device.getCapabilities().VK_KHR_dedicated_allocation ? Vma.VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0)
+                .flags(flags)
                 .physicalDevice(physicalDevice)
                 .device(device)
                 .pVulkanFunctions(VmaVulkanFunctions.calloc(stack).set(instance, device))
@@ -877,8 +879,8 @@ public class Vulkan {
     private void cleanupSwapChain() {
         cleanupCommandBuffers();
 
-//        VK10.vkDestroyPipeline(device, graphicsPipeline, null);
-//        VK10.vkDestroyPipelineLayout(device, pipelineLayout, null);
+        VK10.vkDestroyPipeline(device, graphicsPipeline, null);
+        VK10.vkDestroyPipelineLayout(device, pipelineLayout, null);
         for (long swapChainImageView : swapChainImageViews) {
             VK10.vkDestroyImageView(device, swapChainImageView, null);
         }
@@ -895,7 +897,7 @@ public class Vulkan {
 
         createSwapChain();
         createImageViews();
-//        createGraphicsPipeline();
+        createGraphicsPipeline();
         createCommandBuffers();
     }
 
@@ -1057,6 +1059,70 @@ public class Vulkan {
         }
     }
 
+    private void createFramebuffers() {
+        try(MemoryStack stack = MemoryStack.stackPush()) {
+            long[] swapChainFramebuffers = new long[swapChainImages.length];
+
+            for(int i = 0; i < swapChainImageViews.length; i++) {
+                VkFramebufferCreateInfo framebufferInfo = VkFramebufferCreateInfo.calloc(stack)
+                        .sType$Default()
+//                        .renderPass(renderPass)
+                        .pAttachments(stack.longs(swapChainImageViews[i]))
+                        .width(swapChainExtent.width())
+                        .height(swapChainExtent.height())
+                        .layers(1);
+
+                long[] framebuffer = new long[] { 0 };
+                if(VK10.vkCreateFramebuffer(device, framebufferInfo, null, framebuffer) != VK10.VK_SUCCESS) {
+                    throw new RuntimeException("failed to create framebuffer!");
+                }
+            }
+        }
+    }
+
+    private void createRenderPass() {
+        try(MemoryStack stack = MemoryStack.stackPush()) {
+            VkAttachmentDescription.Buffer colorAttachment = VkAttachmentDescription.calloc(1, stack)
+                    .format(swapChainImageFormat)
+                    .samples(VK10.VK_SAMPLE_COUNT_1_BIT)
+                    .loadOp(VK10.VK_ATTACHMENT_LOAD_OP_CLEAR)
+                    .storeOp(VK10.VK_ATTACHMENT_STORE_OP_STORE)
+                    .stencilLoadOp(VK10.VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+                    .stencilStoreOp(VK10.VK_ATTACHMENT_STORE_OP_DONT_CARE)
+                    .initialLayout(VK10.VK_IMAGE_LAYOUT_UNDEFINED)
+                    .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+            VkAttachmentReference.Buffer colorAttachmentRef = VkAttachmentReference.calloc(1, stack)
+                    .attachment(0)
+                    .layout(VK10.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+            VkSubpassDescription.Buffer subpass = VkSubpassDescription.calloc(1, stack)
+                    .pipelineBindPoint(VK10.VK_PIPELINE_BIND_POINT_GRAPHICS)
+                    .colorAttachmentCount(1)
+                    .pColorAttachments(colorAttachmentRef);
+
+            VkSubpassDependency.Buffer dependency = VkSubpassDependency.calloc(1, stack)
+                    .srcSubpass(VK10.VK_SUBPASS_EXTERNAL)
+                    .dstSubpass(0)
+                    .srcStageMask(VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+                    .srcAccessMask(0)
+                    .dstStageMask(VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+                    .dstAccessMask(VK10.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK10.VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+
+            VkRenderPassCreateInfo renderPassInfo = VkRenderPassCreateInfo.calloc(stack)
+                    .sType$Default()
+                    .pAttachments(colorAttachment)
+                    .pSubpasses(subpass)
+                    .pDependencies(dependency);
+
+            long[] renderPassAddress = new long[] { 0 };
+            if(VK10.vkCreateRenderPass(device, renderPassInfo, null, renderPassAddress) != VK10.VK_SUCCESS) {
+                throw new RuntimeException("failed to create render pass!");
+            }
+//            renderPass = renderPassAddress[0];
+        }
+    }
+
     @SuppressWarnings("resource")
     private void createGraphicsPipeline() {
         try(MemoryStack stack = MemoryStack.stackPush()) {
@@ -1163,6 +1229,8 @@ public class Vulkan {
             }
             pipelineLayout = pipelineLayoutAddress[0];
 
+            VkPipelineRenderingCreateInfo renderInfo = VkPipelineRenderingCreateInfo.calloc(stack)
+                .sType$Default();
 
             VkGraphicsPipelineCreateInfo.Buffer pipelineInfo = VkGraphicsPipelineCreateInfo.calloc(1, stack)
                 .sType$Default()
@@ -1176,10 +1244,9 @@ public class Vulkan {
                 .pColorBlendState(colorBlending)
                 .pDynamicState(dynamicState)
                 .layout(pipelineLayout)
-//                .renderPass(renderPass)
-                .subpass(0)
                 .basePipelineHandle(VK10.VK_NULL_HANDLE)
-                .basePipelineIndex(-1);
+                .basePipelineIndex(-1)
+                .pNext(renderInfo);
 
             long[] graphicsPipelineAddress = new long[] { 0 };
             if(VK10.vkCreateGraphicsPipelines(device, VK10.VK_NULL_HANDLE, pipelineInfo, null, graphicsPipelineAddress) != VK10.VK_SUCCESS) {
@@ -1986,14 +2053,14 @@ public class Vulkan {
 
         Vma.vmaDestroyImage(allocator, textureImage, textureImageAllocation);
 
-//        VK10.vkDestroyDescriptorPool(device, descriptorPool, null);
-//
-//        VK10.vkDestroyDescriptorSetLayout(device, descriptorSetLayout, null);
-//
-//        cleanupUniformBuffers();
-//
-//        Vma.vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
-//        Vma.vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
+        VK10.vkDestroyDescriptorPool(device, descriptorPool, null);
+
+        VK10.vkDestroyDescriptorSetLayout(device, descriptorSetLayout, null);
+
+        cleanupUniformBuffers();
+
+        Vma.vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
+        Vma.vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
 
         for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             VK10.vkDestroySemaphore(device, imageAvailableSemaphores[i], null);
