@@ -901,6 +901,7 @@ public class Vulkan {
             VK10.vkDestroyImageView(device, swapChainImageView, null);
         }
 
+        swapChainExtent.free();
         KHRSwapchain.vkDestroySwapchainKHR(device, swapChain, null);
     }
 
@@ -1338,9 +1339,7 @@ public class Vulkan {
             KHRSwapchain.vkGetSwapchainImagesKHR(device, swapChain, swapChainImageCount, swapChainImages);
 
             swapChainImageFormat = surfaceFormat.format();
-            swapChainExtent = extent;
-
-            swapChainSupport.free();
+            swapChainExtent = VkExtent2D.malloc().set(extent);
         }
     }
 
@@ -1521,7 +1520,6 @@ public class Vulkan {
             if(extensionsSupported) {
                 SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device, stack);
                 swapChainAdequate = swapChainSupport.formats.length != 0 && swapChainSupport.presentModes.length != 0;
-                swapChainSupport.free();
             }
 
             if(!swapChainAdequate) {
@@ -1684,11 +1682,7 @@ public class Vulkan {
         int[] presentModes;
 
         private SwapChainSupportDetails(MemoryStack stack) {
-            capabilities = VkSurfaceCapabilitiesKHR.malloc();
-        }
-
-        private void free() {
-            capabilities.free();
+            capabilities = VkSurfaceCapabilitiesKHR.calloc(stack);
         }
     }
 
