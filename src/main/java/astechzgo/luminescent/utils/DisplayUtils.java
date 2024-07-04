@@ -408,7 +408,7 @@ public class DisplayUtils {
 
 		@Override
 		public void invoke(long window) {
-			Vulkan.redraw();
+			Vulkan.tick();
 		}
 
 	};

@@ -112,7 +112,7 @@ public class Luminescent
             resBorder.upload();
         }
         
-        Vulkan.constructBuffers();
+//        Vulkan.constructBuffers();
 
 
 		if(Constants.getConstantAsBoolean(Constants.WINDOW_FULLSCREEN))

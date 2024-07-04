@@ -56,7 +56,7 @@ public class Vulkan {
     }
 
     public static void tick() {
-        vulkanInstance.updateUniformBuffer(vulkanInstance.imageIndex);
+//        vulkanInstance.updateUniformBuffer(vulkanInstance.imageIndex);
         vulkanInstance.drawFrame();
     }
 
@@ -170,23 +170,18 @@ public class Vulkan {
     private long vertShaderModule;
     private long fragShaderModule;
 
-    private long renderPass;
-
     private long descriptorSetLayout;
     private long pipelineLayout;
 
     private long graphicsPipeline;
 
-    private long[] swapChainFramebuffers;
-
-    private long commandPool;
+    private long[] commandPools;
 
     private VkCommandBuffer[] commandBuffers;
 
     private long[] imageAvailableSemaphores;
     private long[] renderFinishedSemaphores;
     private long[] inFlightFences;
-    private long[] imagesInFlight;
 
     private final List<List<Vertex>> vertices = new ArrayList<>();
     private final List<List<Integer>> indices = new ArrayList<>();
@@ -232,13 +227,12 @@ public class Vulkan {
         createMemoryAllocator();
         createSwapChain();
         createImageViews();
-        createRenderPass();
-        createDescriptorSetLayout();
+//        createDescriptorSetLayout();
         ShaderList.initShaderList();
-        createGraphicsPipeline();
-        createFramebuffers();
+//        createGraphicsPipeline();
         createCommandPool();
-        createTextureSampler();
+        createCommandBuffers();
+//        createTextureSampler();
         createSyncObjects();
     }
 
@@ -371,7 +365,7 @@ public class Vulkan {
         }
     }
 
-    private void transitionImageLayout(VkCommandBuffer cmdBuffer, long image, int srcAccessMask, int dstAccessMask, int oldLayout, int newLayout, int srcStageMask, int dstStageMask) {
+    private void transitionImageLayout(VkCommandBuffer cmdBuffer, long image, long srcAccessMask, long dstAccessMask, int oldLayout, int newLayout, long srcStageMask, long dstStageMask) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VkImageMemoryBarrier2.Buffer barrier = VkImageMemoryBarrier2.calloc(1, stack)
                 .sType$Default()
@@ -502,7 +496,7 @@ public class Vulkan {
 
     private void createDescriptorSets() {
         try(MemoryStack stack = MemoryStack.stackPush()) {
-            long[] layoutVals = new long[swapChainImages.length];
+            long[] layoutVals = new long[MAX_FRAMES_IN_FLIGHT];
             Arrays.fill(layoutVals, descriptorSetLayout);
             LongBuffer layouts = stack.longs(layoutVals);
 
@@ -511,12 +505,12 @@ public class Vulkan {
                 .descriptorPool(descriptorPool)
                 .pSetLayouts(layouts);
 
-            descriptorSets = new long[swapChainImages.length];
+            descriptorSets = new long[MAX_FRAMES_IN_FLIGHT];
             if(VK10.vkAllocateDescriptorSets(device, allocInfo, descriptorSets) != VK10.VK_SUCCESS) {
                 throw new RuntimeException("failed to allocate descriptor set!");
             }
 
-            for(int i = 0; i < swapChainImages.length; i++) {
+            for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
                 VkDescriptorBufferInfo.Buffer viewBufferInfo = VkDescriptorBufferInfo.calloc(1, stack)
                         .buffer(uniformViewBuffers[i])
                         .offset(0)
@@ -816,22 +810,15 @@ public class Vulkan {
     private VkCommandBuffer beginSingleTimeCommands() {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VkCommandBufferAllocateInfo allocInfo = VkCommandBufferAllocateInfo.calloc(stack)
-                .sType$Default()
-                .level(VK10.VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-                .commandPool(commandPool)
-                .commandBufferCount(1);
+                    .sType$Default()
+                    .level(VK10.VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+                    .commandPool(commandPools[currentFrame])
+                    .commandBufferCount(1);
 
             PointerBuffer commandBuffersBuffer = stack.mallocPointer(1);
             VK10.vkAllocateCommandBuffers(device, allocInfo, commandBuffersBuffer);
 
-            VkCommandBuffer[] commandBuffers = new VkCommandBuffer[commandBuffersBuffer.capacity()];
-
-            int i = 0;
-            while(commandBuffersBuffer.hasRemaining()) {
-                commandBuffers[i++] = new VkCommandBuffer(commandBuffersBuffer.get(), device);
-            }
-
-            VkCommandBuffer commandBuffer = commandBuffers[0];
+            VkCommandBuffer commandBuffer = new VkCommandBuffer(commandBuffersBuffer.get(), device);
 
             VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo.calloc(stack)
                 .sType$Default()
@@ -858,7 +845,7 @@ public class Vulkan {
             VK13.vkQueueSubmit2(graphicsQueue, submitInfo2, VK10.VK_NULL_HANDLE);
             VK10.vkQueueWaitIdle(graphicsQueue);
 
-            VK10.vkFreeCommandBuffers(device, commandPool, commandBuffer);
+            VK10.vkFreeCommandBuffers(device, commandPools[currentFrame], commandBuffer);
         }
     }
 
@@ -888,15 +875,10 @@ public class Vulkan {
     }
 
     private void cleanupSwapChain() {
-        for (long swapChainFramebuffer : swapChainFramebuffers) {
-            VK10.vkDestroyFramebuffer(device, swapChainFramebuffer, null);
-        }
-
         cleanupCommandBuffers();
 
-        VK10.vkDestroyPipeline(device, graphicsPipeline, null);
-        VK10.vkDestroyPipelineLayout(device, pipelineLayout, null);
-        VK10.vkDestroyRenderPass(device, renderPass, null);
+//        VK10.vkDestroyPipeline(device, graphicsPipeline, null);
+//        VK10.vkDestroyPipelineLayout(device, pipelineLayout, null);
         for (long swapChainImageView : swapChainImageViews) {
             VK10.vkDestroyImageView(device, swapChainImageView, null);
         }
@@ -913,16 +895,8 @@ public class Vulkan {
 
         createSwapChain();
         createImageViews();
-        createRenderPass();
-        createGraphicsPipeline();
-        createFramebuffers();
+//        createGraphicsPipeline();
         createCommandBuffers();
-
-        int oldSize = imagesInFlight.length;
-        imagesInFlight = Arrays.copyOf(imagesInFlight, swapChainImages.length);
-        if (oldSize < imagesInFlight.length) {
-            Arrays.fill(imagesInFlight, oldSize, imagesInFlight.length, VK10.VK_NULL_HANDLE);
-        }
     }
 
     private void cleanupCommandBuffers() {
@@ -930,7 +904,9 @@ public class Vulkan {
 
         if(commandBuffers != null) {
             try(MemoryStack stack = MemoryStack.stackPush()) {
-                VK10.vkFreeCommandBuffers(device, commandPool, stack.pointers(commandBuffers));
+                for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+                    VK10.vkFreeCommandBuffers(device, commandPools[i], stack.pointers(commandBuffers[i]));
+                }
             }
         }
     }
@@ -940,8 +916,6 @@ public class Vulkan {
             imageAvailableSemaphores = new long[MAX_FRAMES_IN_FLIGHT];
             renderFinishedSemaphores = new long[MAX_FRAMES_IN_FLIGHT];
             inFlightFences = new long[MAX_FRAMES_IN_FLIGHT];
-            imagesInFlight = new long[swapChainImages.length];
-            Arrays.fill(imagesInFlight, VK10.VK_NULL_HANDLE);
 
             VkSemaphoreCreateInfo semaphoreInfo = VkSemaphoreCreateInfo.calloc(stack)
                 .sType$Default();
@@ -968,80 +942,97 @@ public class Vulkan {
 
     private void createCommandBuffers() {
         try(MemoryStack stack = MemoryStack.stackPush()) {
-            commandBuffers = new VkCommandBuffer[swapChainFramebuffers.length];
+            commandBuffers = new VkCommandBuffer[MAX_FRAMES_IN_FLIGHT];
 
-            VkCommandBufferAllocateInfo allocInfo = VkCommandBufferAllocateInfo.calloc(stack)
-                .sType$Default()
-                .commandPool(commandPool)
-                .level(VK10.VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-                .commandBufferCount(commandBuffers.length);
-
-            PointerBuffer commandBuffersBuffer = stack.mallocPointer(commandBuffers.length);
-            if(VK10.vkAllocateCommandBuffers(device, allocInfo, commandBuffersBuffer) != VK10.VK_SUCCESS) {
-                throw new RuntimeException("failed to allocate command buffers!");
-            }
-
-            int i = 0;
-            while(commandBuffersBuffer.hasRemaining()) {
-                commandBuffers[i++] = new VkCommandBuffer(commandBuffersBuffer.get(), device);
-            }
-
-            for(int j = 0; j < commandBuffers.length; j++) {
-                VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo.calloc(stack)
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+                VkCommandBufferAllocateInfo allocInfo = VkCommandBufferAllocateInfo.calloc(stack)
                     .sType$Default()
-                    .flags(VK10.VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT)
+                    .commandPool(commandPools[i])
+                    .level(VK10.VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+                    .commandBufferCount(1);
+
+                PointerBuffer commandBuffersBuffer = stack.mallocPointer(1);
+                if(VK10.vkAllocateCommandBuffers(device, allocInfo, commandBuffersBuffer) != VK10.VK_SUCCESS) {
+                    throw new RuntimeException("failed to allocate command buffers!");
+                }
+
+                commandBuffers[i] = new VkCommandBuffer(commandBuffersBuffer.get(), device);
+            }
+        }
+    }
+
+    private void recordCommandsToImage(long image) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            if (VK10.vkResetCommandBuffer(commandBuffers[currentFrame], 0) != VK10.VK_SUCCESS) {
+                throw new RuntimeException("failed to reset command buffer!");
+            }
+
+            VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo.calloc(stack)
+                    .sType$Default()
+                    .flags(VK10.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
                     .pInheritanceInfo(null);
 
-                VK10.vkBeginCommandBuffer(commandBuffers[j], beginInfo);
+            VK10.vkBeginCommandBuffer(commandBuffers[currentFrame], beginInfo);
 
-                VkRenderPassBeginInfo renderPassInfo = VkRenderPassBeginInfo.calloc(stack)
-                    .sType$Default()
-                    .renderPass(renderPass)
-                    .framebuffer(swapChainFramebuffers[j])
-                    .renderArea(VkRect2D.malloc(stack)
-                        .offset(VkOffset2D.calloc(stack).set(0, 0))
-                        .extent(swapChainExtent));
+            transitionImageLayout(commandBuffers[currentFrame], image,
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT | VK13.VK_ACCESS_2_MEMORY_READ_BIT,
+                    VK10.VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK10.VK_IMAGE_LAYOUT_GENERAL,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
 
-                VkClearValue.Buffer clearColor = VkClearValue.malloc(1, stack)
-                    .color(VkClearColorValue.malloc(stack)
-                        .float32(0, red)
-                        .float32(1, green)
-                        .float32(2, blue)
-                        .float32(3, alpha));
+            VkClearColorValue clearColor = VkClearColorValue.malloc(stack)
+                    .float32(0, red)
+                    .float32(1, green)
+                    .float32(2, blue)
+                    .float32(3, alpha);
 
-                renderPassInfo.pClearValues(clearColor);
+            VkImageSubresourceRange clearRange = VkImageSubresourceRange.calloc(stack)
+                    .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
+                    .baseMipLevel(0)
+                    .levelCount(1)
+                    .baseArrayLayer(0)
+                    .layerCount(1);
 
-                VK10.vkCmdBeginRenderPass(commandBuffers[j], renderPassInfo, VK10.VK_SUBPASS_CONTENTS_INLINE);
+            VK10.vkCmdClearColorImage(commandBuffers[currentFrame], image, VK10.VK_IMAGE_LAYOUT_GENERAL, clearColor, clearRange);
 
-                VK10.vkCmdBindPipeline(commandBuffers[j], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+            /*
+            VK10.vkCmdBindPipeline(commandBuffers[currentFrame], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-                VK10.vkCmdBindVertexBuffers(commandBuffers[j], 0, stack.longs(vertexBuffer), stack.longs(0));
+            VK10.vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, stack.longs(vertexBuffer), stack.longs(0));
 
-                VK10.vkCmdBindIndexBuffer(commandBuffers[j], indexBuffer, 0, VK10.VK_INDEX_TYPE_UINT32);
+            VK10.vkCmdBindIndexBuffer(commandBuffers[currentFrame], indexBuffer, 0, VK10.VK_INDEX_TYPE_UINT32);
 
-                int index = 0;
-                for(int k = 0; k < matrices.size(); k++) {
-                    int listOffset = 0;
-                    for(int l = 0; l < k; l++) {
-                        listOffset += matrices.get(l).size();
-                    }
-
-                    for(int l = 0; l < matrices.get(k).size(); l++) {
-                        int dynamicOffset = (listOffset + l) * (int)dynamicAlignment;
-
-                        VK10.vkCmdBindDescriptorSets(commandBuffers[j], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, new long[] { descriptorSets[j] }, new int[] { dynamicOffset });
-
-                        VK10.vkCmdDrawIndexed(commandBuffers[j], indices.get(k).size(), 1, index, 0, 0);
-                    }
-
-                    index += indices.get(k).size();
+            int index = 0;
+            for (int k = 0; k < matrices.size(); k++) {
+                int listOffset = 0;
+                for (int l = 0; l < k; l++) {
+                    listOffset += matrices.get(l).size();
                 }
 
-                VK10.vkCmdEndRenderPass(commandBuffers[j]);
+                for (int l = 0; l < matrices.get(k).size(); l++) {
+                    int dynamicOffset = (listOffset + l) * (int) dynamicAlignment;
 
-                if(VK10.vkEndCommandBuffer(commandBuffers[j]) != VK10.VK_SUCCESS) {
-                    throw new RuntimeException("failed to record command buffer!");
+                    VK10.vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, new long[]{descriptorSets[currentFrame]}, new int[]{dynamicOffset});
+
+                    VK10.vkCmdDrawIndexed(commandBuffers[currentFrame], indices.get(k).size(), 1, index, 0, 0);
                 }
+
+                index += indices.get(k).size();
+            }
+             */
+
+            transitionImageLayout(commandBuffers[currentFrame], image,
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT | VK13.VK_ACCESS_2_MEMORY_READ_BIT,
+                    VK10.VK_IMAGE_LAYOUT_GENERAL,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+
+            if (VK10.vkEndCommandBuffer(commandBuffers[currentFrame]) != VK10.VK_SUCCESS) {
+                throw new RuntimeException("failed to record command buffer!");
             }
         }
     }
@@ -1053,78 +1044,16 @@ public class Vulkan {
             VkCommandPoolCreateInfo poolInfo = VkCommandPoolCreateInfo.calloc(stack)
                 .sType$Default()
                 .queueFamilyIndex(queueFamilyIndices.graphicsFamily)
-                .flags(0);
+                .flags(VK10.VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-            long[] commandPoolAddress = new long[] { 0 };
-            if(VK10.vkCreateCommandPool(device, poolInfo, null, commandPoolAddress) != VK10.VK_SUCCESS) {
-                throw new RuntimeException("failed to create command pool!");
-            }
-            commandPool = commandPoolAddress[0];
-        }
-    }
-
-    private void createFramebuffers() {
-        try(MemoryStack stack = MemoryStack.stackPush()) {
-            swapChainFramebuffers = new long[swapChainImages.length];
-
-            for(int i = 0; i < swapChainImageViews.length; i++) {
-                VkFramebufferCreateInfo framebufferInfo = VkFramebufferCreateInfo.calloc(stack)
-                    .sType$Default()
-                    .renderPass(renderPass)
-                    .pAttachments(stack.longs(swapChainImageViews[i]))
-                    .width(swapChainExtent.width())
-                    .height(swapChainExtent.height())
-                    .layers(1);
-
-                long[] framebuffer = new long[] { 0 };
-                if(VK10.vkCreateFramebuffer(device, framebufferInfo, null, framebuffer) != VK10.VK_SUCCESS) {
-                    throw new RuntimeException("failed to create framebuffer!");
+            commandPools = new long[MAX_FRAMES_IN_FLIGHT];
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+                long[] commandPoolAddress = new long[]{0};
+                if (VK10.vkCreateCommandPool(device, poolInfo, null, commandPoolAddress) != VK10.VK_SUCCESS) {
+                    throw new RuntimeException("failed to create command pool!");
                 }
-                swapChainFramebuffers[i] = framebuffer[0];
+                commandPools[i] = commandPoolAddress[0];
             }
-        }
-    }
-
-    private void createRenderPass() {
-        try(MemoryStack stack = MemoryStack.stackPush()) {
-            VkAttachmentDescription.Buffer colorAttachment = VkAttachmentDescription.calloc(1, stack)
-                .format(swapChainImageFormat)
-                .samples(VK10.VK_SAMPLE_COUNT_1_BIT)
-                .loadOp(VK10.VK_ATTACHMENT_LOAD_OP_CLEAR)
-                .storeOp(VK10.VK_ATTACHMENT_STORE_OP_STORE)
-                .stencilLoadOp(VK10.VK_ATTACHMENT_LOAD_OP_DONT_CARE)
-                .stencilStoreOp(VK10.VK_ATTACHMENT_STORE_OP_DONT_CARE)
-                .initialLayout(VK10.VK_IMAGE_LAYOUT_UNDEFINED)
-                .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-            VkAttachmentReference.Buffer colorAttachmentRef = VkAttachmentReference.calloc(1, stack)
-                .attachment(0)
-                .layout(VK10.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-            VkSubpassDescription.Buffer subpass = VkSubpassDescription.calloc(1, stack)
-                .pipelineBindPoint(VK10.VK_PIPELINE_BIND_POINT_GRAPHICS)
-                .colorAttachmentCount(1)
-                .pColorAttachments(colorAttachmentRef);
-
-            VkSubpassDependency.Buffer dependency = VkSubpassDependency.calloc(1, stack)
-                .srcSubpass(VK10.VK_SUBPASS_EXTERNAL)
-                .dstSubpass(0)
-                .srcStageMask(VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-                .srcAccessMask(0)
-                .dstStageMask(VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-                .dstAccessMask(VK10.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK10.VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-
-            VkRenderPassCreateInfo renderPassInfo = VkRenderPassCreateInfo.calloc(stack)
-                .sType$Default()
-                .pAttachments(colorAttachment)
-                .pSubpasses(subpass)
-                .pDependencies(dependency);
-
-            long[] renderPassAddress = new long[] { 0 };
-            if(VK10.vkCreateRenderPass(device, renderPassInfo, null, renderPassAddress) != VK10.VK_SUCCESS) {
-                throw new RuntimeException("failed to create render pass!");
-            }
-            renderPass = renderPassAddress[0];
         }
     }
 
@@ -1247,7 +1176,7 @@ public class Vulkan {
                 .pColorBlendState(colorBlending)
                 .pDynamicState(dynamicState)
                 .layout(pipelineLayout)
-                .renderPass(renderPass)
+//                .renderPass(renderPass)
                 .subpass(0)
                 .basePipelineHandle(VK10.VK_NULL_HANDLE)
                 .basePipelineIndex(-1);
@@ -1304,7 +1233,7 @@ public class Vulkan {
                 .imageColorSpace(surfaceFormat.colorSpace())
                 .imageExtent(extent)
                 .imageArrayLayers(1)
-                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+                .imageUsage(VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
             QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
@@ -1991,12 +1920,7 @@ public class Vulkan {
             throw new RuntimeException("failed to aquire swap chain image!");
         }
 
-        if(imagesInFlight[imageIndex] != VK10.VK_NULL_HANDLE) {
-            VK10.vkWaitForFences(device, imagesInFlight[imageIndex], true, Long.MAX_VALUE);
-        }
-
-        imagesInFlight[imageIndex] = inFlightFences[currentFrame];
-
+        recordCommandsToImage(swapChainImages[imageIndex]);
 
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VkSemaphoreSubmitInfo.Buffer waitSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack)
@@ -2011,7 +1935,7 @@ public class Vulkan {
 
             VkCommandBufferSubmitInfo.Buffer cmdSubmitInfo = VkCommandBufferSubmitInfo.calloc(1, stack)
                 .sType$Default()
-                .commandBuffer(commandBuffers[imageIndex]);
+                .commandBuffer(commandBuffers[currentFrame]);
 
             VkSubmitInfo2.Buffer submitInfo  = VkSubmitInfo2.calloc(1, stack)
                 .sType$Default()
@@ -2062,14 +1986,14 @@ public class Vulkan {
 
         Vma.vmaDestroyImage(allocator, textureImage, textureImageAllocation);
 
-        VK10.vkDestroyDescriptorPool(device, descriptorPool, null);
-
-        VK10.vkDestroyDescriptorSetLayout(device, descriptorSetLayout, null);
-
-        cleanupUniformBuffers();
-
-        Vma.vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
-        Vma.vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
+//        VK10.vkDestroyDescriptorPool(device, descriptorPool, null);
+//
+//        VK10.vkDestroyDescriptorSetLayout(device, descriptorSetLayout, null);
+//
+//        cleanupUniformBuffers();
+//
+//        Vma.vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
+//        Vma.vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
 
         for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             VK10.vkDestroySemaphore(device, imageAvailableSemaphores[i], null);
@@ -2077,7 +2001,9 @@ public class Vulkan {
             VK10.vkDestroyFence(device, inFlightFences[i], null);
         }
 
-        VK10.vkDestroyCommandPool(device, commandPool, null);
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VK10.vkDestroyCommandPool(device, commandPools[i], null);
+        }
 
         cleanupAllocator();
 
@@ -2438,10 +2364,5 @@ public class Vulkan {
         copied.addAll(vulkanInstance.matrices.get(index));
         copied.addAll(new ArrayList<>(Arrays.asList(matrices)));
         vulkanInstance.matrices.set(index, copied);
-    }
-
-    public static void redraw() {
-        vulkanInstance.updateUniformBuffer(vulkanInstance.imageIndex);
-        vulkanInstance.drawFrame();
     }
 }
