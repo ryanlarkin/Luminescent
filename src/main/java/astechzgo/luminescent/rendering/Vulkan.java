@@ -218,6 +218,8 @@ public class Vulkan {
     private int imageIndex;
     private int currentFrame;
 
+    private long drawImage, drawImageAllocation, drawImageView;
+
     private void initVulkan() {
         createInstance();
         setupDebugMessenger();
@@ -464,7 +466,47 @@ public class Vulkan {
         endSingleTimeCommands(commandBuffer);
     }
 
-    private void createImage(int width, int height, int format, int tiling, int initialLayout, int usage, int properties, long[] imageAddress, long[] imageAllocationAddress) {
+    private void copyImageToImage(VkCommandBuffer cmd, long sourceImage, long destImage, int width, int height) {
+        try(MemoryStack stack = MemoryStack.stackPush()) {
+            VkImageBlit2.Buffer blitRegion = VkImageBlit2.calloc(1, stack)
+                .sType$Default()
+                .srcSubresource(VkImageSubresourceLayers.malloc(stack)
+                    .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
+                    .mipLevel(0)
+                    .baseArrayLayer(0)
+                    .layerCount(1))
+                .srcOffsets(VkOffset3D.calloc(2, stack).position(1)
+                    .x(width)
+                    .y(height)
+                    .z(1).position(0))
+                .dstSubresource(VkImageSubresourceLayers.malloc(stack)
+                    .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
+                    .mipLevel(0)
+                    .baseArrayLayer(0)
+                    .layerCount(1))
+                .dstOffsets(VkOffset3D.calloc(2, stack).position(1)
+                    .x(width)
+                    .y(height)
+                    .z(1).position(0));
+
+            VkBlitImageInfo2 blitInfo = VkBlitImageInfo2.calloc(stack)
+                .sType$Default()
+                .dstImage(destImage)
+                .dstImageLayout(VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                .srcImage(sourceImage)
+                .srcImageLayout(VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+                .filter(VK10.VK_FILTER_LINEAR)
+                .pRegions(blitRegion);
+
+            VK13.vkCmdBlitImage2(cmd, blitInfo);
+        }
+    }
+
+    private void createImage(int width, int height, int format, int tiling, int initialLayout, int usage, int vmaProperties, long[] imageAddress, long[] imageAllocationAddress) {
+        createImage(width, height, format, tiling, initialLayout, usage, vmaProperties, Vma.VMA_MEMORY_USAGE_UNKNOWN, imageAddress, imageAllocationAddress);
+    }
+
+    private void createImage(int width, int height, int format, int tiling, int initialLayout, int usage, int vmaProperties, int vmaUsage, long[] imageAddress, long[] imageAllocationAddress) {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VkImageCreateInfo imageInfo = VkImageCreateInfo.calloc(stack)
                 .sType$Default()
@@ -484,7 +526,8 @@ public class Vulkan {
                 .flags(0);
 
             VmaAllocationCreateInfo allocationCreateInfo = VmaAllocationCreateInfo.calloc(stack)
-                    .requiredFlags(properties);
+                .usage(vmaUsage)
+                .requiredFlags(vmaProperties);
 
             LongBuffer wrappedImage = stack.mallocLong(1);
             PointerBuffer wrappedAllocation = stack.mallocPointer(1);
@@ -885,6 +928,9 @@ public class Vulkan {
             VK10.vkDestroyImageView(device, swapChainImageView, null);
         }
 
+        VK10.vkDestroyImageView(device, drawImageView, null);
+        Vma.vmaDestroyImage(allocator, drawImage, drawImageAllocation);
+
         swapChainExtent.free();
         KHRSwapchain.vkDestroySwapchainKHR(device, swapChain, null);
     }
@@ -963,7 +1009,7 @@ public class Vulkan {
         }
     }
 
-    private void recordCommandsToImage(long image) {
+    private void recordCommands() {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             if (VK10.vkResetCommandBuffer(commandBuffers[currentFrame], 0) != VK10.VK_SUCCESS) {
                 throw new RuntimeException("failed to reset command buffer!");
@@ -976,7 +1022,7 @@ public class Vulkan {
 
             VK10.vkBeginCommandBuffer(commandBuffers[currentFrame], beginInfo);
 
-            transitionImageLayout(commandBuffers[currentFrame], image,
+            transitionImageLayout(commandBuffers[currentFrame], drawImage,
                     VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
                     VK13.VK_ACCESS_2_MEMORY_WRITE_BIT | VK13.VK_ACCESS_2_MEMORY_READ_BIT,
                     VK10.VK_IMAGE_LAYOUT_UNDEFINED,
@@ -997,7 +1043,7 @@ public class Vulkan {
                     .baseArrayLayer(0)
                     .layerCount(1);
 
-            VK10.vkCmdClearColorImage(commandBuffers[currentFrame], image, VK10.VK_IMAGE_LAYOUT_GENERAL, clearColor, clearRange);
+            VK10.vkCmdClearColorImage(commandBuffers[currentFrame], drawImage, VK10.VK_IMAGE_LAYOUT_GENERAL, clearColor, clearRange);
 
             /*
             VK10.vkCmdBindPipeline(commandBuffers[currentFrame], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
@@ -1025,10 +1071,29 @@ public class Vulkan {
             }
              */
 
-            transitionImageLayout(commandBuffers[currentFrame], image,
+            transitionImageLayout(commandBuffers[currentFrame], drawImage,
                     VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
                     VK13.VK_ACCESS_2_MEMORY_WRITE_BIT | VK13.VK_ACCESS_2_MEMORY_READ_BIT,
                     VK10.VK_IMAGE_LAYOUT_GENERAL,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+
+            transitionImageLayout(commandBuffers[currentFrame], swapChainImages[imageIndex],
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT | VK13.VK_ACCESS_2_MEMORY_READ_BIT,
+                    VK10.VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+
+            copyImageToImage(commandBuffers[currentFrame], drawImage, swapChainImages[imageIndex],
+                    swapChainExtent.width(), swapChainExtent.height());
+
+            transitionImageLayout(commandBuffers[currentFrame], swapChainImages[imageIndex],
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
+                    VK13.VK_ACCESS_2_MEMORY_WRITE_BIT | VK13.VK_ACCESS_2_MEMORY_READ_BIT,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                     VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                     VK13.VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
@@ -1300,7 +1365,7 @@ public class Vulkan {
                 .imageColorSpace(surfaceFormat.colorSpace())
                 .imageExtent(extent)
                 .imageArrayLayers(1)
-                .imageUsage(VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
             QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
@@ -1336,6 +1401,20 @@ public class Vulkan {
 
             swapChainImageFormat = surfaceFormat.format();
             swapChainExtent = VkExtent2D.malloc().set(extent);
+
+            long[] drawImageAddress = new long[] { 0 };
+            long[] drawImageAllocationAddress = new long[] { 0 };
+            createImage(swapChainExtent.width(), swapChainExtent.height(),
+                    VK10.VK_FORMAT_R16G16B16A16_SFLOAT, VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                            | VK10.VK_IMAGE_USAGE_STORAGE_BIT | VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vma.VMA_MEMORY_USAGE_GPU_ONLY,
+                    drawImageAddress, drawImageAllocationAddress);
+
+            drawImage = drawImageAddress[0];
+            drawImageAllocation = drawImageAllocationAddress[0];
+
+            drawImageView = createImageView(drawImage, VK10.VK_FORMAT_R16G16B16A16_SFLOAT);
         }
     }
 
@@ -1987,7 +2066,7 @@ public class Vulkan {
             throw new RuntimeException("failed to aquire swap chain image!");
         }
 
-        recordCommandsToImage(swapChainImages[imageIndex]);
+        recordCommands();
 
         try(MemoryStack stack = MemoryStack.stackPush()) {
             VkSemaphoreSubmitInfo.Buffer waitSemaphores = VkSemaphoreSubmitInfo.calloc(1, stack)
