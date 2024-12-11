@@ -1043,9 +1043,26 @@ public class Vulkan {
                     .baseArrayLayer(0)
                     .layerCount(1);
 
-            VK10.vkCmdClearColorImage(commandBuffers[currentFrame], drawImage, VK10.VK_IMAGE_LAYOUT_GENERAL, clearColor, clearRange);
+//            VK10.vkCmdClearColorImage(commandBuffers[currentFrame], drawImage, VK10.VK_IMAGE_LAYOUT_GENERAL, clearColor, clearRange);
 
-            /*
+            VkRenderingAttachmentInfo.Buffer colourAttachments = VkRenderingAttachmentInfo.calloc(1, stack)
+                    .sType$Default()
+                    .imageView(drawImageView)
+                    .imageLayout(VK10.VK_IMAGE_LAYOUT_GENERAL)
+                    .loadOp(VK10.VK_ATTACHMENT_LOAD_OP_CLEAR)
+                    .storeOp(VK10.VK_ATTACHMENT_STORE_OP_STORE)
+                    .clearValue(VkClearValue.malloc(stack).color(clearColor));
+
+            VkRenderingInfo renderingInfo = VkRenderingInfo.calloc(stack)
+                    .sType$Default()
+                    .renderArea(VkRect2D.malloc(stack)
+                            .offset(VkOffset2D.malloc(stack).set(0, 0))
+                            .extent(swapChainExtent))
+                    .layerCount(1)
+                    .pColorAttachments(colourAttachments);
+
+            VK13.vkCmdBeginRendering(commandBuffers[currentFrame], renderingInfo);
+
             VK10.vkCmdBindPipeline(commandBuffers[currentFrame], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
             VK10.vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, stack.longs(vertexBuffer), stack.longs(0));
@@ -1069,7 +1086,8 @@ public class Vulkan {
 
                 index += indices.get(k).size();
             }
-             */
+
+            VK13.vkCmdEndRendering(commandBuffers[currentFrame]);
 
             transitionImageLayout(commandBuffers[currentFrame], drawImage,
                     VK13.VK_ACCESS_2_MEMORY_WRITE_BIT,
@@ -1295,7 +1313,9 @@ public class Vulkan {
             pipelineLayout = pipelineLayoutAddress[0];
 
             VkPipelineRenderingCreateInfo renderInfo = VkPipelineRenderingCreateInfo.calloc(stack)
-                .sType$Default();
+                .sType$Default()
+                .pColorAttachmentFormats(stack.ints(VK10.VK_FORMAT_R16G16B16A16_SFLOAT))
+                .depthAttachmentFormat(VK10.VK_FORMAT_UNDEFINED);
 
             VkGraphicsPipelineCreateInfo.Buffer pipelineInfo = VkGraphicsPipelineCreateInfo.calloc(1, stack)
                 .sType$Default()
