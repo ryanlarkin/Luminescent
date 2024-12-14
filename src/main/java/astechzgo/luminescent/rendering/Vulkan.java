@@ -49,6 +49,7 @@ public class Vulkan {
 
     public static void init() {
         vulkanInstance.initVulkan();
+        vulkanInstance.isInitialized = true;
     }
 
     public static void recreate() {
@@ -62,6 +63,7 @@ public class Vulkan {
 
     public static void shutdown() {
         vulkanInstance.cleanup();
+        vulkanInstance.isInitialized = false;
     }
 
     public static void setClearColour(float redVal, float greenVal, float blueVal, float alphaVal) {
@@ -91,6 +93,10 @@ public class Vulkan {
 
     public static void createWindowSurface() {
         vulkanInstance.createSurface();
+    }
+
+    public static boolean isInitialized() {
+        return vulkanInstance.isInitialized;
     }
 
     public static final class RawImage {
@@ -219,6 +225,8 @@ public class Vulkan {
     private int currentFrame;
 
     private long drawImage, drawImageAllocation, drawImageView;
+
+    private boolean isInitialized;
 
     private void initVulkan() {
         createInstance();

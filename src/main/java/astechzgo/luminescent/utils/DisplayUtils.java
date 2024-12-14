@@ -408,7 +408,11 @@ public class DisplayUtils {
 
 		@Override
 		public void invoke(long window) {
-			Vulkan.tick();
+			// The Font code could potentially refresh the Window,
+			// causing this code to run before Vulkan has been initialized
+			if (!Vulkan.isInitialized()) {
+				Vulkan.tick();
+			}
 		}
 
 	};
