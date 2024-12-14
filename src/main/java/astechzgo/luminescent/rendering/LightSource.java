@@ -4,23 +4,16 @@ import astechzgo.luminescent.coordinates.GameCoordinates;
 import astechzgo.luminescent.coordinates.ScaledWindowCoordinates;
 import astechzgo.luminescent.utils.DisplayUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class LightSource {
-    public static final int LIGHTS = 250;
+    public static final int MAX_LIGHTS = 250;
 
-    private static final LightSource[] lights = new LightSource[LIGHTS];
-
-    private static int searchFirst(LightSource source) {
-        for(int i = 0; i < lights.length; i++) {
-            if(lights[i] == source) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
+    private static final List<LightSource> lights = new ArrayList<>();
 
     public static boolean contains(LightSource source) {
-        return searchFirst(source) != -1;
+        return lights.contains(source);
     }
 
     public static void addSource(LightSource source) {
@@ -29,13 +22,12 @@ public class LightSource {
         }
 
         if(!contains(source)) {
-            int i = searchFirst(null);
-            if(i == -1) {
+            if(lights.size() == MAX_LIGHTS) {
                 System.out.println("Out of space for lights");
                 return;
             }
 
-            lights[i] = source;
+            lights.add(source);
         }
     }
 
@@ -44,14 +36,15 @@ public class LightSource {
             return;
         }
 
-        int i = searchFirst(source);
-        if(i != -1) {
-            lights[searchFirst(source)] = null;
-        }
+        lights.remove(source);
     }
 
     public static LightSource get(int index) {
-        return lights[index];
+        return lights.get(index);
+    }
+
+    public static int size() {
+        return lights.size();
     }
 
     private GameCoordinates coords;

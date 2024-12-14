@@ -9,7 +9,7 @@ layout(binding = 3) uniform LightSource {
 
 layout(location = 0) in vec4 fragColor;
 layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in float fragDoLighting;
+layout(location = 2) flat in int fragLightCount;
 
 layout(location = 0) out vec4 outColor;
 
@@ -18,16 +18,16 @@ void main() {
 	
 	float sumLight = 0;
 	
-	if(fragDoLighting != 0) {
-		for(int i = 0; i < lights.source.length(); i++) {
+	if(fragLightCount >= 0) {
+		for(int i = 0; i < fragLightCount; i++) {
 			if(lights.source[i].z > 0) {
 				float x = gl_FragCoord.x - lights.source[i].x;
 				float y = gl_FragCoord.y - lights.source[i].y;
 				float r = lights.source[i].z;
-				
-				float distance = min(sqrt((x*x)+(y*y)), r);
-			
-				sumLight += (r-distance)/r;
+
+				float r2 = r*r;
+				float d2 = min((x*x)+(y*y), r2);
+				sumLight += (r2 - d2)/(d2 + r2);
 			}
 		}
 	}

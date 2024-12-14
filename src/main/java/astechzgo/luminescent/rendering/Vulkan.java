@@ -574,7 +574,7 @@ public class Vulkan {
                 VkDescriptorBufferInfo.Buffer lightsBufferInfo = VkDescriptorBufferInfo.calloc(1, stack)
                         .buffer(uniformLightsBuffers[i])
                         .offset(0)
-                        .range(LightSource.LIGHTS * lightAlignment);
+                        .range(LightSource.MAX_LIGHTS * lightAlignment);
 
                 VkWriteDescriptorSet.Buffer descriptorWrites = VkWriteDescriptorSet.calloc(4, stack);
 
@@ -689,7 +689,7 @@ public class Vulkan {
         int lightUBOSize = 3 * Float.BYTES;
         int lightUniformAlignment = 16;
         lightAlignment = (lightUBOSize / lightUniformAlignment) * lightUniformAlignment + ((lightUBOSize % lightUniformAlignment) > 0 ? lightUniformAlignment : 0);
-        long lightsBufferSize = LightSource.LIGHTS * dynamicAlignment;
+        long lightsBufferSize = LightSource.MAX_LIGHTS * dynamicAlignment;
 
         for(int i = 0; i < swapChainImages.length; i++) {
             createBuffer(viewBufferSize, VK10.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformViewBuffers, i, uniformViewBufferAllocations, i);
@@ -1644,6 +1644,10 @@ public class Vulkan {
     }
 
     private int chooseSwapPresentMode(int[] availablePresentModes) {
+        if (Luminescent.DEBUG) {
+            return KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
+
         for(int availablePresentMode : availablePresentModes) {
             if(availablePresentMode == KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR) {
                 return availablePresentMode;
@@ -1974,7 +1978,7 @@ public class Vulkan {
                         byteData.putInt((int) (idx * dynamicAlignment) + j * 4, currentFrames.get(i).get());
                         byteData.putInt((int) (idx * dynamicAlignment) + (j + 1) * 4, frameCount.get(i));
                         byteData.putFloat((int) (idx * dynamicAlignment) + (j + 2) * 4, tm.getTexWidth());
-                        byteData.putInt((int) (idx * dynamicAlignment) + (j + 3) * 4, doLighting.get(i).get() && lighting ? 1 : 0);
+                        byteData.putInt((int) (idx * dynamicAlignment) + (j + 3) * 4, doLighting.get(i).get() && lighting ? LightSource.size() : -1);
 
                         idx++;
                     }
@@ -1986,14 +1990,13 @@ public class Vulkan {
             Vma.vmaUnmapMemory(allocator, uniformModelBufferAllocations[currentImage]);
 
             Vma.vmaMapMemory(allocator, uniformLightsBufferAllocations[currentImage], data);
-                ByteBuffer lightData = data.getByteBuffer((int) (LightSource.LIGHTS * lightAlignment));
-                    for(int i = 0; i < LightSource.LIGHTS; i++) {
+                ByteBuffer lightData = data.getByteBuffer((int) (LightSource.MAX_LIGHTS * lightAlignment));
+                    for(int i = 0; i < LightSource.MAX_LIGHTS; i++) {
                         float[] light;
-                        if(LightSource.get(i) == null || LightSource.get(i).getRadius() == 0) {
+                        if(i >= LightSource.size() || LightSource.get(i).getRadius() == 0) {
                             light = new float[] { 0.0f, 0.0f, 0.0f };
                         }
                         else {
-                            ScaledWindowCoordinates coords = new ScaledWindowCoordinates(LightSource.get(i).getCoords());
                             light = new float[]{LightSource.get(i).getScaledX(), LightSource.get(i).getScaledY(), LightSource.get(i).getScaledRadius()};
                         }
 
