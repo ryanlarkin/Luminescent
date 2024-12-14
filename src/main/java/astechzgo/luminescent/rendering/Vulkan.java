@@ -1036,15 +1036,6 @@ public class Vulkan {
                     .float32(2, blue)
                     .float32(3, alpha);
 
-            VkImageSubresourceRange clearRange = VkImageSubresourceRange.calloc(stack)
-                    .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
-                    .baseMipLevel(0)
-                    .levelCount(1)
-                    .baseArrayLayer(0)
-                    .layerCount(1);
-
-//            VK10.vkCmdClearColorImage(commandBuffers[currentFrame], drawImage, VK10.VK_IMAGE_LAYOUT_GENERAL, clearColor, clearRange);
-
             VkRenderingAttachmentInfo.Buffer colourAttachments = VkRenderingAttachmentInfo.calloc(1, stack)
                     .sType$Default()
                     .imageView(drawImageView)
@@ -1064,6 +1055,22 @@ public class Vulkan {
             VK13.vkCmdBeginRendering(commandBuffers[currentFrame], renderingInfo);
 
             VK10.vkCmdBindPipeline(commandBuffers[currentFrame], VK10.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+            VkViewport.Buffer viewport = VkViewport.malloc(1, stack)
+                    .x(0.0f)
+                    .y(0.0f)
+                    .width(swapChainExtent.width())
+                    .height(swapChainExtent.height())
+                    .minDepth(0.0f)
+                    .maxDepth(1.0f);
+
+            VK10.vkCmdSetViewport(commandBuffers[currentFrame], 0, viewport);
+
+            VkRect2D.Buffer scissor = VkRect2D.malloc(1, stack)
+                    .offset(VkOffset2D.malloc(stack).set(0, 0))
+                    .extent(swapChainExtent);
+
+            VK10.vkCmdSetScissor(commandBuffers[currentFrame], 0, scissor);
 
             VK10.vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, stack.longs(vertexBuffer), stack.longs(0));
 
@@ -1142,70 +1149,6 @@ public class Vulkan {
         }
     }
 
-    private void createFramebuffers() {
-        try(MemoryStack stack = MemoryStack.stackPush()) {
-            long[] swapChainFramebuffers = new long[swapChainImages.length];
-
-            for(int i = 0; i < swapChainImageViews.length; i++) {
-                VkFramebufferCreateInfo framebufferInfo = VkFramebufferCreateInfo.calloc(stack)
-                        .sType$Default()
-//                        .renderPass(renderPass)
-                        .pAttachments(stack.longs(swapChainImageViews[i]))
-                        .width(swapChainExtent.width())
-                        .height(swapChainExtent.height())
-                        .layers(1);
-
-                long[] framebuffer = new long[] { 0 };
-                if(VK10.vkCreateFramebuffer(device, framebufferInfo, null, framebuffer) != VK10.VK_SUCCESS) {
-                    throw new RuntimeException("failed to create framebuffer!");
-                }
-            }
-        }
-    }
-
-    private void createRenderPass() {
-        try(MemoryStack stack = MemoryStack.stackPush()) {
-            VkAttachmentDescription.Buffer colorAttachment = VkAttachmentDescription.calloc(1, stack)
-                    .format(swapChainImageFormat)
-                    .samples(VK10.VK_SAMPLE_COUNT_1_BIT)
-                    .loadOp(VK10.VK_ATTACHMENT_LOAD_OP_CLEAR)
-                    .storeOp(VK10.VK_ATTACHMENT_STORE_OP_STORE)
-                    .stencilLoadOp(VK10.VK_ATTACHMENT_LOAD_OP_DONT_CARE)
-                    .stencilStoreOp(VK10.VK_ATTACHMENT_STORE_OP_DONT_CARE)
-                    .initialLayout(VK10.VK_IMAGE_LAYOUT_UNDEFINED)
-                    .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-            VkAttachmentReference.Buffer colorAttachmentRef = VkAttachmentReference.calloc(1, stack)
-                    .attachment(0)
-                    .layout(VK10.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-            VkSubpassDescription.Buffer subpass = VkSubpassDescription.calloc(1, stack)
-                    .pipelineBindPoint(VK10.VK_PIPELINE_BIND_POINT_GRAPHICS)
-                    .colorAttachmentCount(1)
-                    .pColorAttachments(colorAttachmentRef);
-
-            VkSubpassDependency.Buffer dependency = VkSubpassDependency.calloc(1, stack)
-                    .srcSubpass(VK10.VK_SUBPASS_EXTERNAL)
-                    .dstSubpass(0)
-                    .srcStageMask(VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-                    .srcAccessMask(0)
-                    .dstStageMask(VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-                    .dstAccessMask(VK10.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK10.VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-
-            VkRenderPassCreateInfo renderPassInfo = VkRenderPassCreateInfo.calloc(stack)
-                    .sType$Default()
-                    .pAttachments(colorAttachment)
-                    .pSubpasses(subpass)
-                    .pDependencies(dependency);
-
-            long[] renderPassAddress = new long[] { 0 };
-            if(VK10.vkCreateRenderPass(device, renderPassInfo, null, renderPassAddress) != VK10.VK_SUCCESS) {
-                throw new RuntimeException("failed to create render pass!");
-            }
-//            renderPass = renderPassAddress[0];
-        }
-    }
-
     @SuppressWarnings("resource")
     private void createGraphicsPipeline() {
         try(MemoryStack stack = MemoryStack.stackPush()) {
@@ -1238,22 +1181,10 @@ public class Vulkan {
                 .topology(VK10.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
                 .primitiveRestartEnable(false);
 
-            VkViewport.Buffer viewport = VkViewport.malloc(1, stack)
-                .x(0.0f)
-                .y(0.0f)
-                .width(swapChainExtent.width())
-                .height(swapChainExtent.height())
-                .minDepth(0.0f)
-                .maxDepth(1.0f);
-
-            VkRect2D.Buffer scissor = VkRect2D.malloc(1, stack)
-                .offset(VkOffset2D.malloc(stack).set(0, 0))
-                .extent(swapChainExtent);
-
             VkPipelineViewportStateCreateInfo viewportState = VkPipelineViewportStateCreateInfo.calloc(stack)
                 .sType$Default()
-                .pViewports(viewport)
-                .pScissors(scissor);
+                .viewportCount(1)
+                .scissorCount(1);
 
             VkPipelineRasterizationStateCreateInfo rasterizer = VkPipelineRasterizationStateCreateInfo.calloc(stack)
                 .sType$Default()
@@ -1299,7 +1230,11 @@ public class Vulkan {
 
             VkPipelineDynamicStateCreateInfo dynamicState = VkPipelineDynamicStateCreateInfo.calloc(stack)
                 .sType$Default()
-                .pDynamicStates(stack.ints(VK10.VK_DYNAMIC_STATE_STENCIL_WRITE_MASK, VK10.VK_DYNAMIC_STATE_LINE_WIDTH));
+                .pDynamicStates(stack.ints(
+                        VK10.VK_DYNAMIC_STATE_VIEWPORT,
+                        VK10.VK_DYNAMIC_STATE_SCISSOR,
+                        VK10.VK_DYNAMIC_STATE_LINE_WIDTH,
+                        VK10.VK_DYNAMIC_STATE_STENCIL_WRITE_MASK));
 
             VkPipelineLayoutCreateInfo pipelineLayoutInfo = VkPipelineLayoutCreateInfo.calloc(stack)
                 .sType$Default()
