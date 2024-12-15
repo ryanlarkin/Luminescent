@@ -36,7 +36,7 @@ import astechzgo.luminescent.utils.DisplayUtils;
 
 public class Vulkan {
 
-    private static final int VK_API_VERSION = VK13.VK_API_VERSION_1_3;
+    private static final int VK_API_VERSION = VK14.VK_API_VERSION_1_4;
 
     private static final Vulkan vulkanInstance = new Vulkan();
 
