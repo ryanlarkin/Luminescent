@@ -24,25 +24,18 @@ dependencies {
 	implementation("org.lwjgl", "lwjgl-stb")
 	implementation("org.lwjgl", "lwjgl-vulkan")
 	implementation("org.lwjgl", "lwjgl-vma")
-	runtimeOnly("org.lwjgl", "lwjgl", classifier = "natives-linux")
-	runtimeOnly("org.lwjgl", "lwjgl", classifier = "natives-macos")
-	runtimeOnly("org.lwjgl", "lwjgl", classifier = "natives-windows")
-	runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = "natives-linux")
-	runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = "natives-macos")
-	runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = "natives-windows")
-	runtimeOnly("org.lwjgl", "lwjgl-jemalloc", classifier = "natives-linux")
-	runtimeOnly("org.lwjgl", "lwjgl-jemalloc", classifier = "natives-macos")
-	runtimeOnly("org.lwjgl", "lwjgl-jemalloc", classifier = "natives-windows")
-	runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = "natives-linux")
-	runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = "natives-macos")
-	runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = "natives-windows")
-	runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = "natives-linux")
-	runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = "natives-macos")
-	runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = "natives-windows")
-	runtimeOnly("org.lwjgl", "lwjgl-vulkan", classifier = "natives-macos")
-	runtimeOnly("org.lwjgl", "lwjgl-vma", classifier = "natives-linux")
-	runtimeOnly("org.lwjgl", "lwjgl-vma", classifier = "natives-windows")
-	runtimeOnly("org.lwjgl", "lwjgl-vma", classifier = "natives-macos")
+	listOf("natives-linux", "natives-macos", "natives-macos-arm64", "natives-windows")
+		.forEach { platform ->
+			runtimeOnly("org.lwjgl", "lwjgl", classifier = platform)
+			runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = platform)
+			runtimeOnly("org.lwjgl", "lwjgl-jemalloc", classifier = platform)
+			runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = platform)
+			runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = platform)
+			runtimeOnly("org.lwjgl", "lwjgl-vma", classifier = platform)
+		}
+	listOf("natives-macos", "natives-macos-arm64").forEach { platform ->
+		runtimeOnly("org.lwjgl", "lwjgl-vulkan", classifier = platform)
+	}
 
 	implementation("org.joml", "joml", project.extra["jomlVersion"] as String)
 }
