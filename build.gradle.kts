@@ -78,7 +78,7 @@ apply(from = "shaders.gradle.kts")
 
 task("run") {
 	doLast {
-		javaexec {
+		providers.javaexec {
 			classpath(tasks.jar)
 		}
 	}
