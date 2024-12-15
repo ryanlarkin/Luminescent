@@ -25,18 +25,14 @@ package astechzgo.luminescent.text;
 
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
-import static java.awt.Font.TRUETYPE_FONT;
 
 import java.awt.Color;
-import java.awt.FontFormatException;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.font.FontRenderContext;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,130 +53,34 @@ public class Font {
 	
 	public static final String TEXTURE_NAME = "Glyph-Atlas";
 	
-	public static final Font NORMAL_FONT = new Font();
+	public static final Font NORMAL_FONT = new Font(16);
 
-    /**
-     * Contains the glyphs for each char.
-     */
-    private final Map<Character, Glyph> glyphs;
     /**
      * Contains the font texture.
      */
     private final CharTexture texture;
 
-    /**
-     * Height of the font.
-     */
-    private int fontHeight;
-
-    private final java.awt.Font font;
-    
-    /**
-     * Creates a default antialiased font with monospaced glyphs and default
-     * size 16.
-     */
-    public Font() {
-        this(new java.awt.Font(MONOSPACED, PLAIN, 16), true);
-    }
-
-    /**
-     * Creates a default font with monospaced glyphs and default size 16.
-     *
-     * @param antiAlias Wheter the font should be antialiased or not
-     */
-    public Font(boolean antiAlias) {
-        this(new java.awt.Font(MONOSPACED, PLAIN, 16), antiAlias);
-    }
-
-    /**
-     * Creates a default antialiased font with monospaced glyphs and specified
-     * size.
-     *
-     * @param size Font size
-     */
     public Font(int size) {
-        this(new java.awt.Font(MONOSPACED, PLAIN, size), true);
-    }
-
-    /**
-     * Creates a default font with monospaced glyphs and specified size.
-     *
-     * @param size      Font size
-     * @param antiAlias Wheter the font should be antialiased or not
-     */
-    public Font(int size, boolean antiAlias) {
-        this(new java.awt.Font(MONOSPACED, PLAIN, size), antiAlias);
-    }
-
-    /**
-     * Creates a antialiased Font from an input stream.
-     *
-     * @param in   The input stream
-     * @param size Font size
-     *
-     * @throws FontFormatException if fontFile does not contain the required
-     *                             font tables for the specified format
-     * @throws IOException         If font can't be read
-     */
-    public Font(InputStream in, int size) throws FontFormatException, IOException {
-        this(in, size, true);
-    }
-
-    /**
-     * Creates a Font from an input stream.
-     *
-     * @param in        The input stream
-     * @param size      Font size
-     * @param antiAlias Wheter the font should be antialiased or not
-     *
-     * @throws FontFormatException if fontFile does not contain the required
-     *                             font tables for the specified format
-     * @throws IOException         If font can't be read
-     */
-    public Font(InputStream in, int size, boolean antiAlias) throws FontFormatException, IOException {
-        this(java.awt.Font.createFont(TRUETYPE_FONT, in).deriveFont(PLAIN, size), antiAlias);
-    }
-
-    /**
-     * Creates a antialiased font from an AWT Font.
-     *
-     * @param font The AWT Font
-     */
-    public Font(java.awt.Font font) {
-        this(font, true);
-    }
-
-    /**
-     * Creates a font from an AWT Font.
-     *
-     * @param font      The AWT Font
-     * @param antiAlias Wheter the font should be antialiased or not
-     */
-    public Font(java.awt.Font font, boolean antiAlias) {
-    	if(font.getSize() == 0)
-    		font = font.deriveFont(1.0f);
-    		
-    	FontRenderContext frc = new FontRenderContext(null, RenderingHints.VALUE_TEXT_ANTIALIAS_DEFAULT, RenderingHints.VALUE_FRACTIONALMETRICS_DEFAULT);
-    	if(font.getStringBounds("i", frc).getWidth() != font.getStringBounds("m", frc).getWidth()) {
-    	    this.font = new java.awt.Font(MONOSPACED, PLAIN, font.getSize());
-    	}
-    	else {
-    	    this.font = font;
-    	}
-    	
-        glyphs = new HashMap<>();
-        texture = createFontTexture(font, antiAlias);
+        texture = createFontTexture(size);
     }
 
     /**
      * Creates a font texture from specified AWT font.
      *
-     * @param font      The AWT font
-     * @param antiAlias Wheter the font should be antialiased or not
-     *
      * @return Font texture
      */
-    private CharTexture createFontTexture(java.awt.Font font, boolean antiAlias) {
+    private static CharTexture createFontTexture(int size) {
+        Map<Character, Glyph> glyphs = new HashMap<>();
+
+        java.awt.Font font = new java.awt.Font(MONOSPACED, PLAIN, size);
+        if(font.getSize() == 0)
+            font = font.deriveFont(1.0f);
+
+        FontRenderContext frc = new FontRenderContext(null, RenderingHints.VALUE_TEXT_ANTIALIAS_DEFAULT, RenderingHints.VALUE_FRACTIONALMETRICS_DEFAULT);
+        if(font.getStringBounds("i", frc).getWidth() != font.getStringBounds("m", frc).getWidth()) {
+            font = new java.awt.Font(MONOSPACED, PLAIN, font.getSize());
+        }
+
         /* Loop through the characters to get charWidth and charHeight */
         int imageWidth = 0;
         int imageHeight = 0;
@@ -192,7 +92,7 @@ public class Font {
                 continue;
             }
             char c = (char) i;
-            BufferedImage ch = createCharImage(font, c, antiAlias);
+            BufferedImage ch = createCharImage(font, c, false);
             if (ch == null) {
                 /* If char image is null that font does not contain the char */
                 continue;
@@ -201,8 +101,6 @@ public class Font {
             imageWidth += ch.getWidth();
             imageHeight = Math.max(imageHeight, ch.getHeight());
         }
-
-        fontHeight = imageHeight;
 
         /* Image for the texture */
         BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
@@ -218,7 +116,7 @@ public class Font {
                 continue;
             }
             char c = (char) i;
-            BufferedImage charImage = createCharImage(font, c, antiAlias);
+            BufferedImage charImage = createCharImage(font, c, false);
             if (charImage == null) {
                 /* If char image is null that font does not contain the char */
                 continue;
@@ -231,45 +129,13 @@ public class Font {
             Glyph ch = new Glyph(charWidth, charHeight, x, image.getHeight() - charHeight);
             g.drawImage(charImage, x, 0, null);
             x += ch.width;
+
             glyphs.put(c, ch);
         }
 
-//        /* Flip image Horizontal to get the origin to bottom left */
-//        AffineTransform transform = AffineTransform.getScaleInstance(1f, -1f);
-//        transform.translate(0, -image.getHeight());
-//        AffineTransformOp operation = new AffineTransformOp(transform,
-//                                                            AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
-//        image = operation.filter(image, null);
-//
-//        /* Get charWidth and charHeight of image */
-//        int width = image.getWidth();
-//        int height = image.getHeight();
-//
-//        /* Get pixel data of image */
-//        int[] pixels = new int[width * height];
-//        image.getRGB(0, 0, width, height, pixels, 0, width);
-//
-//        /* Put pixel data into a ByteBuffer */
-//        ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4);
-//        for (int i = 0; i < height; i++) {
-//            for (int j = 0; j < width; j++) {
-//                /* Pixel as RGBA: 0xAARRGGBB */
-//                int pixel = pixels[i * width + j];
-//                /* Red component 0xAARRGGBB >> 16 = 0x0000AARR */
-//                buffer.put((byte) ((pixel >> 16) & 0xFF));
-//                /* Green component 0xAARRGGBB >> 8 = 0x00AARRGG */
-//                buffer.put((byte) ((pixel >> 8) & 0xFF));
-//                /* Blue component 0xAARRGGBB >> 0 = 0xAARRGGBB */
-//                buffer.put((byte) (pixel & 0xFF));
-//                /* Alpha component 0xAARRGGBB >> 24 = 0x000000AA */
-//                buffer.put((byte) ((pixel >> 24) & 0xFF));
-//            }
-//        }
-//        /* Do not forget to flip the buffer! */
-//        buffer.flip();
 
-        return new CharTexture(TEXTURE_NAME, image);
-        
+        // Output: font height, CharTexture(buffer image),
+        return new CharTexture(TEXTURE_NAME, image, glyphs);
     }
 
     /**
@@ -281,7 +147,7 @@ public class Font {
      *
      * @return Char image
      */
-    private BufferedImage createCharImage(java.awt.Font font, char c, boolean antiAlias) {
+    private static BufferedImage createCharImage(java.awt.Font font, char c, boolean antiAlias) {
         /* Creating temporary image to extract character size */
         BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
@@ -337,7 +203,7 @@ public class Font {
                 /* Carriage return, just skip it */
                 continue;
             }
-            Glyph g = glyphs.get(c);
+            Glyph g = texture.glyphs.get(c);
             lineWidth += g.width;
         }
         width = Math.max(width, lineWidth);
@@ -366,7 +232,7 @@ public class Font {
                 /* Carriage return, just skip it */
                 continue;
             }
-            Glyph g = glyphs.get(c);
+            Glyph g = texture.glyphs.get(c);
             lineHeight = Math.max(lineHeight, g.height);
         }
         height += lineHeight;
@@ -384,6 +250,7 @@ public class Font {
         CharRenderer[] characters = new CharRenderer[text.length()];
         
         int textHeight = getHeight(text);
+        int fontHeight = texture.getAsBufferedImage().getHeight();
 
         int drawX = (int) coordinates.getWindowCoordinatesX();
         int drawY = (int) coordinates.getWindowCoordinatesY();
@@ -403,7 +270,7 @@ public class Font {
                 /* Carriage return, just skip it */
                 continue;
             }
-            Glyph g = glyphs.get(ch);
+            Glyph g = texture.glyphs.get(ch);
             characters[i] = new CharRenderer(new WindowCoordinates(drawX, drawY), g.width, g.height, texture, ch);
             characters[i].setColour(colour);
             
@@ -431,26 +298,12 @@ public class Font {
         drawText(text, coordinates, Color.WHITE);
     }
     
-    public String getFontName() {
-    	return font.getFontName();
-    }
-    
-    public int getFontStyle() {
-    	return font.getStyle();
-    }
-    
-    public int getFontSize() {
-    	return font.getSize();
-    }
-    
-    private class CharTexture extends Texture {
+    private static class CharTexture extends Texture {
+        private final Map<Character, Glyph> glyphs;
         
-        public CharTexture(String textureName) {
-            super(textureName);
-        }
-        
-        public CharTexture(String textureName, Image image) {
+        public CharTexture(String textureName, Image image, Map<Character, Glyph> glyphs) {
             super(textureName, image);
+            this.glyphs = glyphs;
         }
         
         public int getCurrentFrame(Supplier<Character> character) {
@@ -464,16 +317,9 @@ public class Font {
         
     }
     
-    public class CharRenderer extends RectangularObjectRenderer {
-        
+    public static class CharRenderer extends RectangularObjectRenderer {
         private char character;
-        
-        public CharRenderer(WindowCoordinates coordinates, double width, double height, char character) {
-            super(coordinates, width, height);
-            
-            this.character = character;
-        }
-        
+
         public CharRenderer(WindowCoordinates coordinates, double width, double height, Texture texture, char character) {
             super(coordinates, width, height, texture);
             
