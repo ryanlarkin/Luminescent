@@ -4,7 +4,7 @@ plugins {
 }
 
 buildscript {
-	extra["lwjglVersion"] = "3.3.4"
+	extra["lwjglVersion"] = "3.3.5"
 	extra["jomlVersion"] = "1.10.8"
 	extra["gsonVersion"] = "2.11.0"
 }
