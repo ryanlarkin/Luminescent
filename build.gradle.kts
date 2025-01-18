@@ -4,7 +4,7 @@ plugins {
 }
 
 buildscript {
-	extra["lwjglVersion"] = "3.3.5"
+	extra["lwjglVersion"] = "3.3.6"
 	extra["jomlVersion"] = "1.10.8"
 	extra["gsonVersion"] = "2.11.0"
 }
@@ -84,6 +84,6 @@ java {
 }
 
 tasks.wrapper {
-	gradleVersion = "8.11.1"
+	gradleVersion = "8.12"
 	distributionType = Wrapper.DistributionType.ALL
 }
