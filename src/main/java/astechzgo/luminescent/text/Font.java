@@ -128,7 +128,7 @@ public class Font {
             /* Create glyph and draw char on image */
             Glyph ch = new Glyph(charWidth, charHeight, x, image.getHeight() - charHeight);
             g.drawImage(charImage, x, 0, null);
-            x += ch.width;
+            x += ch.width();
 
             glyphs.put(c, ch);
         }
@@ -204,7 +204,7 @@ public class Font {
                 continue;
             }
             Glyph g = texture.glyphs.get(c);
-            lineWidth += g.width;
+            lineWidth += g.width();
         }
         width = Math.max(width, lineWidth);
         return width;
@@ -233,7 +233,7 @@ public class Font {
                 continue;
             }
             Glyph g = texture.glyphs.get(c);
-            lineHeight = Math.max(lineHeight, g.height);
+            lineHeight = Math.max(lineHeight, g.height());
         }
         height += lineHeight;
         return height;
@@ -271,18 +271,18 @@ public class Font {
                 continue;
             }
             Glyph g = texture.glyphs.get(ch);
-            characters[i] = new CharRenderer(new WindowCoordinates(drawX, drawY), g.width, g.height, texture, ch);
+            characters[i] = new CharRenderer(new WindowCoordinates(drawX, drawY), g.width(), g.height(), texture, ch);
             characters[i].setColour(colour);
             
             WindowCoordinates a = new WindowCoordinates(drawX, drawY);
-            WindowCoordinates b = new WindowCoordinates(drawX + g.width, drawY);
-            WindowCoordinates c = new WindowCoordinates(drawX + g.width, drawY + g.height);
-            WindowCoordinates d = new WindowCoordinates(drawX, drawY + g.height);
+            WindowCoordinates b = new WindowCoordinates(drawX + g.width(), drawY);
+            WindowCoordinates c = new WindowCoordinates(drawX + g.width(), drawY + g.height());
+            WindowCoordinates d = new WindowCoordinates(drawX, drawY + g.height());
             
             final Supplier<Character> character = characters[i]::getCharacter;
             RenderingUtils.createQuad(a, b, c, d, colour, texture, Boolean.valueOf(false)::booleanValue, Optional.of(() -> texture.getCurrentFrame(character)), List.of(characters[i]::getModelMatrix));
             
-            drawX += g.width;
+            drawX += g.width();
         }
         
         return characters;
@@ -297,7 +297,9 @@ public class Font {
     public void drawText(CharSequence text, WindowCoordinates coordinates) {
         drawText(text, coordinates, Color.WHITE);
     }
-    
+
+    private record Glyph(int width, int height, int x, int y) {}
+
     private static class CharTexture extends Texture {
         private final Map<Character, Glyph> glyphs;
         
@@ -307,7 +309,7 @@ public class Font {
         }
         
         public int getCurrentFrame(Supplier<Character> character) {
-            return (int) ((float)glyphs.get(character.get()).x / this.getAsBufferedImage().getWidth() * glyphs.size());
+            return (int) ((float) glyphs.get(character.get()).x() / this.getAsBufferedImage().getWidth() * glyphs.size());
         }
         
         @Override
