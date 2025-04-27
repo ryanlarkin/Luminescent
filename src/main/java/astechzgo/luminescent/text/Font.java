@@ -25,6 +25,7 @@ package astechzgo.luminescent.text;
 
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 import java.awt.Color;
 import java.awt.FontMetrics;
@@ -33,6 +34,12 @@ import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.font.FontRenderContext;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +50,11 @@ import astechzgo.luminescent.coordinates.WindowCoordinates;
 import astechzgo.luminescent.rendering.RectangularObjectRenderer;
 import astechzgo.luminescent.textures.Texture;
 import astechzgo.luminescent.utils.RenderingUtils;
+import org.lwjgl.stb.STBTTFontinfo;
+import org.lwjgl.stb.STBTruetype;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.system.jemalloc.JEmalloc;
 
 /**
  * This class contains a font texture for drawing text.
@@ -61,7 +73,11 @@ public class Font {
     private final CharTexture texture;
 
     public Font(int size) {
-        texture = createFontTexture(size);
+        try {
+            texture = createFontTexture(size);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -69,117 +85,88 @@ public class Font {
      *
      * @return Font texture
      */
-    private static CharTexture createFontTexture(int size) {
+    private static CharTexture createFontTexture(int size) throws IOException {
         Map<Character, Glyph> glyphs = new HashMap<>();
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            STBTTFontinfo fontInfo = STBTTFontinfo.malloc(stack);
+            Path path = Path.of("C:\\Windows\\Fonts\\Cour.ttf");
+            byte[] data = Files.readAllBytes(path);
+            ByteBuffer fontBuffer = MemoryUtil.memAlloc(data.length).put(data).flip();
+            STBTruetype.stbtt_InitFont(fontInfo, fontBuffer);
 
-        java.awt.Font font = new java.awt.Font(MONOSPACED, PLAIN, size);
-        if(font.getSize() == 0)
-            font = font.deriveFont(1.0f);
+            float scale = STBTruetype.stbtt_ScaleForPixelHeight(fontInfo, size * 4 / 3.0f);
+            int[] ascent = new int[1];
+            STBTruetype.stbtt_GetFontVMetrics(fontInfo, ascent, null, null);
 
-        FontRenderContext frc = new FontRenderContext(null, RenderingHints.VALUE_TEXT_ANTIALIAS_DEFAULT, RenderingHints.VALUE_FRACTIONALMETRICS_DEFAULT);
-        if(font.getStringBounds("i", frc).getWidth() != font.getStringBounds("m", frc).getWidth()) {
-            font = new java.awt.Font(MONOSPACED, PLAIN, font.getSize());
+            int imageWidth = 0;
+            int imageHeight = (int)(size * 4 / 3.0f);
+            int baseline = (int)(ascent[0] * scale);
+
+            for (int i = 32; i < 256; i++) {
+                if (i == 127) continue;
+
+                int[] advance = new int[1];
+                int[] lsb = new int[1];
+                if (STBTruetype.stbtt_FindGlyphIndex(fontInfo, i) == 0) {
+                    continue;
+                }
+                STBTruetype.stbtt_GetCodepointHMetrics(fontInfo, i, advance, lsb);
+                imageWidth += (int)Math.ceil(advance[0] * scale);
+            }
+
+            int xpos = 0;
+            // extra row to avoid writing out of bounds
+            ByteBuffer textureData = MemoryUtil.memAlloc(imageWidth * (imageHeight + 1));
+            for (int i = 32; i < 256; i++) {
+                if (i == 127) continue;
+
+                if (STBTruetype.stbtt_FindGlyphIndex(fontInfo, i) == 0) {
+                    continue;
+                }
+
+                int[] advance = new int[1];
+                int[] lsb = new int[1];
+                STBTruetype.stbtt_GetCodepointHMetrics(fontInfo, i, advance, lsb);
+
+                int[] ix0 = new int[1], iy0 = new int[1], ix1  = new int[1], iy1 = new int[1];
+                STBTruetype.stbtt_GetCodepointBitmapBox(fontInfo, i, scale, scale, ix0, iy0,  ix1, iy1);
+                // each row will be written to textureData[xpos + row * stride, xpos + row * stride + width]
+                // therefore, set stride to be the width of the entire image so that each row will be the start of
+                // the texture
+                int glyphWidth = ix1[0] - ix0[0];
+                int glyphHeight = iy1[0] - iy0[0];
+                int x = Math.round(lsb[0] * scale);
+                int y = baseline + iy0[0];
+
+                int boxWidth = (int)Math.ceil(advance[0] * scale);
+                glyphs.put((char)i, new Glyph(boxWidth, imageHeight, xpos, 0));
+
+                STBTruetype.stbtt_MakeCodepointBitmap(fontInfo, textureData.position(imageWidth * y + xpos + x), glyphWidth, glyphHeight, imageWidth, scale, scale, i);
+                xpos += boxWidth;
+            }
+            textureData.rewind();
+
+            MemoryUtil.memFree(fontBuffer);
+
+            Color textColour = Color.WHITE;
+            BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
+            for (int i = 0; i < imageHeight; i++) {
+                for (int j = 0; j < imageWidth; j++) {
+                    int alpha = textureData.get();
+                    int red = textColour.getRed();
+                    int green = textColour.getGreen();
+                    int blue = textColour.getBlue();
+                    int colour = alpha << 24 | red << 16 | green << 8 | blue;
+                    image.setRGB(j, i, colour);
+                }
+            }
+
+            MemoryUtil.memFree(textureData);
+
+            return new CharTexture(TEXTURE_NAME, image, glyphs);
         }
-
-        /* Loop through the characters to get charWidth and charHeight */
-        int imageWidth = 0;
-        int imageHeight = 0;
-
-        /* Start at char #32, because ASCII 0 to 31 are just control codes */
-        for (int i = 32; i < 256; i++) {
-            if (i == 127) {
-                /* ASCII 127 is the DEL control code, so we can skip it */
-                continue;
-            }
-            char c = (char) i;
-            BufferedImage ch = createCharImage(font, c, false);
-            if (ch == null) {
-                /* If char image is null that font does not contain the char */
-                continue;
-            }
-
-            imageWidth += ch.getWidth();
-            imageHeight = Math.max(imageHeight, ch.getHeight());
-        }
-
-        /* Image for the texture */
-        BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = image.createGraphics();
-
-        int x = 0;
-
-        /* Create image for the standard chars, again we omit ASCII 0 to 31
-         * because they are just control codes */
-        for (int i = 32; i < 256; i++) {
-            if (i == 127) {
-                /* ASCII 127 is the DEL control code, so we can skip it */
-                continue;
-            }
-            char c = (char) i;
-            BufferedImage charImage = createCharImage(font, c, false);
-            if (charImage == null) {
-                /* If char image is null that font does not contain the char */
-                continue;
-            }
-
-            int charWidth = charImage.getWidth();
-            int charHeight = charImage.getHeight();
-
-            /* Create glyph and draw char on image */
-            Glyph ch = new Glyph(charWidth, charHeight, x, image.getHeight() - charHeight);
-            g.drawImage(charImage, x, 0, null);
-            x += ch.width();
-
-            glyphs.put(c, ch);
-        }
-
-
-        // Output: font height, CharTexture(buffer image),
-        return new CharTexture(TEXTURE_NAME, image, glyphs);
     }
 
-    /**
-     * Creates a char image from specified AWT font and char.
-     *
-     * @param font      The AWT font
-     * @param c         The char
-     * @param antiAlias Wheter the char should be antialiased or not
-     *
-     * @return Char image
-     */
-    private static BufferedImage createCharImage(java.awt.Font font, char c, boolean antiAlias) {
-        /* Creating temporary image to extract character size */
-        BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = image.createGraphics();
-        if (antiAlias) {
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        }
-        g.setFont(font);
-        FontMetrics metrics = g.getFontMetrics();
-        g.dispose();
-
-        /* Get char charWidth and charHeight */
-        int charWidth = metrics.charWidth(c);
-        int charHeight = metrics.getHeight();
-
-        /* Check if charWidth is 0 */
-        if (charWidth == 0) {
-            return null;
-        }
-
-        /* Create image for holding the char */
-        image = new BufferedImage(charWidth, charHeight, BufferedImage.TYPE_INT_ARGB);
-        g = image.createGraphics();
-        if (antiAlias) {
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        }
-        g.setFont(font);
-        g.setPaint(java.awt.Color.WHITE);
-        g.drawString(String.valueOf(c), 0, metrics.getAscent());
-        g.dispose();
-        return image;
-    }
-    
     /**
      * Gets the width of the specified text.
      *
@@ -309,7 +296,7 @@ public class Font {
         }
         
         public int getCurrentFrame(Supplier<Character> character) {
-            return (int) ((float) glyphs.get(character.get()).x() / this.getAsBufferedImage().getWidth() * glyphs.size());
+            return glyphs.get(character.get()).x() * glyphs.size() / this.getAsBufferedImage().getWidth();
         }
         
         @Override
