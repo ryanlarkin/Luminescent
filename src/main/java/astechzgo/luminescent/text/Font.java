@@ -23,21 +23,12 @@
  */
 package astechzgo.luminescent.text;
 
-import static java.awt.Font.MONOSPACED;
-import static java.awt.Font.PLAIN;
-import static org.lwjgl.system.MemoryUtil.memAddress;
-
 import java.awt.Color;
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.font.FontRenderContext;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -50,11 +41,11 @@ import astechzgo.luminescent.coordinates.WindowCoordinates;
 import astechzgo.luminescent.rendering.RectangularObjectRenderer;
 import astechzgo.luminescent.textures.Texture;
 import astechzgo.luminescent.utils.RenderingUtils;
+import astechzgo.luminescent.utils.SystemUtils;
 import org.lwjgl.stb.STBTTFontinfo;
 import org.lwjgl.stb.STBTruetype;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.system.jemalloc.JEmalloc;
 
 /**
  * This class contains a font texture for drawing text.
@@ -64,17 +55,18 @@ import org.lwjgl.system.jemalloc.JEmalloc;
 public class Font {
 	
 	public static final String TEXTURE_NAME = "Glyph-Atlas";
-	
-	public static final Font NORMAL_FONT = new Font(16);
+
+    public static final String MONO_FONT_PATH = "ubuntu-mono/UbuntuMono-R";
+	public static final Font NORMAL_FONT = new Font(MONO_FONT_PATH, 16);
 
     /**
      * Contains the font texture.
      */
     private final CharTexture texture;
 
-    public Font(int size) {
+    public Font(String fontName, int size) {
         try {
-            texture = createFontTexture(size);
+            texture = createFontTexture(fontName, size);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -85,18 +77,18 @@ public class Font {
      *
      * @return Font texture
      */
-    private static CharTexture createFontTexture(int size) throws IOException {
+    private static CharTexture createFontTexture(String font, int size) throws IOException {
         Map<Character, Glyph> glyphs = new HashMap<>();
-        try (MemoryStack stack = MemoryStack.stackPush()) {
+        try (MemoryStack stack = MemoryStack.stackPush();  InputStream in = SystemUtils.getResourceAsURL("fonts/" + font + ".ttf").openStream();) {
             STBTTFontinfo fontInfo = STBTTFontinfo.malloc(stack);
-            Path path = Path.of("C:\\Windows\\Fonts\\Cour.ttf");
-            byte[] data = Files.readAllBytes(path);
+            byte[] data = in.readAllBytes();
             ByteBuffer fontBuffer = MemoryUtil.memAlloc(data.length).put(data).flip();
             STBTruetype.stbtt_InitFont(fontInfo, fontBuffer);
 
             float scale = STBTruetype.stbtt_ScaleForPixelHeight(fontInfo, size * 4 / 3.0f);
             int[] ascent = new int[1];
-            STBTruetype.stbtt_GetFontVMetrics(fontInfo, ascent, null, null);
+            int[] descent = new int[1];
+            STBTruetype.stbtt_GetFontVMetrics(fontInfo, ascent, descent, null);
 
             int imageWidth = 0;
             int imageHeight = (int)(size * 4 / 3.0f);
@@ -130,17 +122,18 @@ public class Font {
 
                 int[] ix0 = new int[1], iy0 = new int[1], ix1  = new int[1], iy1 = new int[1];
                 STBTruetype.stbtt_GetCodepointBitmapBox(fontInfo, i, scale, scale, ix0, iy0,  ix1, iy1);
-                // each row will be written to textureData[xpos + row * stride, xpos + row * stride + width]
-                // therefore, set stride to be the width of the entire image so that each row will be the start of
-                // the texture
-                int glyphWidth = ix1[0] - ix0[0];
-                int glyphHeight = iy1[0] - iy0[0];
+
                 int x = Math.round(lsb[0] * scale);
-                int y = baseline + iy0[0];
+                int y = Math.max(0, baseline + iy0[0]);
+                int glyphWidth = ix1[0] - ix0[0];
+                int glyphHeight = Math.min(imageHeight - y, iy1[0] - iy0[0]);
 
                 int boxWidth = (int)Math.ceil(advance[0] * scale);
                 glyphs.put((char)i, new Glyph(boxWidth, imageHeight, xpos, 0));
 
+                // each row will be written to textureData[xpos + row * stride, xpos + row * stride + width]
+                // therefore, set stride to be the width of the entire image so that each row will be the start of
+                // the texture
                 STBTruetype.stbtt_MakeCodepointBitmap(fontInfo, textureData.position(imageWidth * y + xpos + x), glyphWidth, glyphHeight, imageWidth, scale, scale, i);
                 xpos += boxWidth;
             }

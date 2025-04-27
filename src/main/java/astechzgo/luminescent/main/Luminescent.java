@@ -75,7 +75,7 @@ public class Luminescent
 			roomEdges.add(rect);
 		}
 
-		fpsText = new TextLabelRenderer(new WindowCoordinates(0, 0), new Font(50), "FPS: #####");
+		fpsText = new TextLabelRenderer(new WindowCoordinates(0, 0), new Font(Font.MONO_FONT_PATH, 45), "FPS: #####");
 		fpsCalc = new FPSCalculator(new DecimalFormat("#####"), 1);
 		
 		resBorders = new QuadrilateralObjectRenderer[] {
