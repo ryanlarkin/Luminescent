@@ -35,18 +35,18 @@ public class TexturePacker {
         List<Texture> byHeight = new ArrayList<>(textures.size());
         
         byWidth.addAll(textures);
-        byWidth.sort((o1, o2) -> o2.getAsBufferedImage().getWidth() - o1.getAsBufferedImage().getWidth());
+        byWidth.sort((o1, o2) -> o2.getWidth() - o1.getWidth());
         
         byHeight.addAll(textures);
-        byHeight.sort((o1, o2) -> o2.getAsBufferedImage().getHeight() - o1.getAsBufferedImage().getHeight());
+        byHeight.sort((o1, o2) -> o2.getHeight() - o1.getHeight());
         
         Set<AtlasMember> members = new HashSet<>();
         
-        int width = Math.max(1024, byWidth.get(0).getAsBufferedImage().getWidth());
+        int width = Math.max(1024, byWidth.get(0).getWidth());
         int levelY = 0;
-        if(byWidth.get(0).getAsBufferedImage().getWidth() > 1024) {
+        if(byWidth.get(0).getWidth() > 1024) {
             members.add(new AtlasMember(byWidth.get(0), 0, 0));
-            levelY = byWidth.get(0).getAsBufferedImage().getHeight();
+            levelY = byWidth.get(0).getHeight();
             byHeight.remove(byWidth.get(0));
             byWidth.remove(byWidth.get(0));
         }
@@ -56,25 +56,25 @@ public class TexturePacker {
             members.add(new AtlasMember(th, 0, levelY));
             byWidth.remove(th);
             byHeight.remove(th);
-            
-            // FIXME: Texture bleed if width doesn't have an extra space
-            int levelX = th.getAsBufferedImage().getWidth() + 1;
+
+            // Add extra space due to bilinear blending
+            int levelX = th.getWidth() + 1;
             int i = 0;
             while(byWidth.size() != i) {
                 Texture tw = byWidth.get(i);
-                if(width - levelX >= tw.getAsBufferedImage().getWidth()) {
+                if(width - levelX >= tw.getWidth()) {
                     members.add(new AtlasMember(tw, levelX, levelY));
                     byWidth.remove(tw);
                     byHeight.remove(tw);
                     
-                    levelX += tw.getAsBufferedImage().getWidth() + 1;
+                    levelX += tw.getWidth() + 1;
                 }
                 else {
                     i++;
                 }
             }
             
-            levelY += th.getAsBufferedImage().getHeight();
+            levelY += th.getHeight();
         }
         
         atlasMembers = Collections.unmodifiableSet(members);
@@ -97,7 +97,7 @@ public class TexturePacker {
         }
         g2.dispose();
         
-        atlas = new Texture("texture-atlas", newImage);
+        atlas = new Texture("texture-atlas", Texture.toByteBuffer(newImage), newImage.getWidth(), newImage.getHeight());
     }
     
     public Texture getAtlas() {
@@ -131,8 +131,8 @@ public class TexturePacker {
             this.texture = texture;
             this.x = x;
             this.y = y;
-            this.width = texture.getAsBufferedImage().getWidth();
-            this.height = texture.getAsBufferedImage().getHeight();
+            this.width = texture.getWidth();
+            this.height = texture.getHeight();
         }
         
         public void setTexSize(int atlasWidth, int atlasHeight) {

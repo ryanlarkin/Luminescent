@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 import astechzgo.luminescent.main.Luminescent;
+import astechzgo.luminescent.textures.Texture;
 import org.lwjgl.glfw.*;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
@@ -136,9 +137,10 @@ public class DisplayUtils {
 		
 		int i = 0;
 		for (String name : nIcon) {
-			ByteBuffer buffer = TextureList.findTexture(name).getAsByteBuffer();
-			int width = TextureList.findTexture(name).getAsBufferedImage().getWidth();
-			int height = TextureList.findTexture(name).getAsBufferedImage().getHeight();
+			Texture texture = TextureList.findTexture(name);
+			ByteBuffer buffer = texture.getAsByteBuffer();
+			int width = texture.getWidth();
+			int height = texture.getHeight();
 			
 			icons.position(i++).width(width).height(height).pixels(buffer);
 		}

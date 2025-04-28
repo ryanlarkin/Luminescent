@@ -23,14 +23,10 @@
  */
 package astechzgo.luminescent.text;
 
-import java.awt.Color;
-import java.awt.Image;
-import java.awt.image.BufferedImage;
+import java.awt.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +53,6 @@ public class Font {
 	public static final String TEXTURE_NAME = "Glyph-Atlas";
 
     public static final String MONO_FONT_PATH = "ubuntu-mono/UbuntuMono-R";
-	public static final Font NORMAL_FONT = new Font(MONO_FONT_PATH, 16);
 
     /**
      * Contains the font texture.
@@ -79,7 +74,7 @@ public class Font {
      */
     private static CharTexture createFontTexture(String font, int size) throws IOException {
         Map<Character, Glyph> glyphs = new HashMap<>();
-        try (MemoryStack stack = MemoryStack.stackPush();  InputStream in = SystemUtils.getResourceAsURL("fonts/" + font + ".ttf").openStream();) {
+        try (MemoryStack stack = MemoryStack.stackPush();  InputStream in = SystemUtils.getResourceAsURL("fonts/" + font + ".ttf").openStream()) {
             STBTTFontinfo fontInfo = STBTTFontinfo.malloc(stack);
             byte[] data = in.readAllBytes();
             ByteBuffer fontBuffer = MemoryUtil.memAlloc(data.length).put(data).flip();
@@ -142,21 +137,21 @@ public class Font {
             MemoryUtil.memFree(fontBuffer);
 
             Color textColour = Color.WHITE;
-            BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
+            ByteBuffer outputData = MemoryUtil.memAlloc(4 * imageWidth * imageHeight);
             for (int i = 0; i < imageHeight; i++) {
                 for (int j = 0; j < imageWidth; j++) {
-                    int alpha = textureData.get();
-                    int red = textColour.getRed();
-                    int green = textColour.getGreen();
-                    int blue = textColour.getBlue();
-                    int colour = alpha << 24 | red << 16 | green << 8 | blue;
-                    image.setRGB(j, i, colour);
+                    byte alpha = textureData.get();
+                    byte red = (byte)textColour.getRed();
+                    byte green = (byte)textColour.getGreen();
+                    byte blue = (byte)textColour.getBlue();
+                    outputData.put(new byte[] {red, green, blue, alpha});
                 }
             }
+            outputData.flip();
 
             MemoryUtil.memFree(textureData);
 
-            return new CharTexture(TEXTURE_NAME, image, glyphs);
+            return new CharTexture(TEXTURE_NAME, outputData, imageWidth, imageHeight, glyphs);
         }
     }
 
@@ -230,7 +225,7 @@ public class Font {
         CharRenderer[] characters = new CharRenderer[text.length()];
         
         int textHeight = getHeight(text);
-        int fontHeight = texture.getAsBufferedImage().getHeight();
+        int fontHeight = texture.getHeight();
 
         int drawX = (int) coordinates.getWindowCoordinatesX();
         int drawY = (int) coordinates.getWindowCoordinatesY();
@@ -268,28 +263,19 @@ public class Font {
         return characters;
     }
 
-    /**
-     * Draw text at the specified position.
-     *
-     * @param text          Text to draw
-     * @param coordinates   Coordinates of the text position
-     */
-    public void drawText(CharSequence text, WindowCoordinates coordinates) {
-        drawText(text, coordinates, Color.WHITE);
-    }
-
     private record Glyph(int width, int height, int x, int y) {}
 
     private static class CharTexture extends Texture {
         private final Map<Character, Glyph> glyphs;
-        
-        public CharTexture(String textureName, Image image, Map<Character, Glyph> glyphs) {
-            super(textureName, image);
+
+        // Caller should allocate imageData with MemoryUtil and never free it
+        public CharTexture(String textureName, ByteBuffer imageData, int width, int height, Map<Character, Glyph> glyphs) {
+            super(textureName, imageData, width, height);
             this.glyphs = glyphs;
         }
         
         public int getCurrentFrame(Supplier<Character> character) {
-            return glyphs.get(character.get()).x() * glyphs.size() / this.getAsBufferedImage().getWidth();
+            return glyphs.get(character.get()).x() * glyphs.size() / this.getWidth();
         }
         
         @Override

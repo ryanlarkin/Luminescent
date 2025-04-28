@@ -332,15 +332,15 @@ public class Vulkan {
         texturePacker.pack();
 
         for(TexturePacker.AtlasMember member : texturePacker.getAtlasMembers()) {
-            member.setTexSize(texturePacker.getAtlas().getAsBufferedImage().getWidth(), texturePacker.getAtlas().getAsBufferedImage().getHeight());
+            member.setTexSize(texturePacker.getAtlas().getWidth(), texturePacker.getAtlas().getHeight());
         }
 
         try(MemoryStack stack = MemoryStack.stackPush()) {
             Texture texture = texturePacker.getAtlas();
 
             ByteBuffer pixels = texture.getAsByteBuffer();
-            int width = texture.getAsBufferedImage().getWidth();
-            int height = texture.getAsBufferedImage().getHeight();
+            int width = texture.getWidth();
+            int height = texture.getHeight();
             int imageSize = width * height * 4;
 
             long[] stagingBufferAddress = { 0 };
@@ -796,8 +796,8 @@ public class Vulkan {
             TexturePacker.AtlasMember member = texturePacker.getAtlasMember(textures.get(i) == null ? TextureList.findTexture("misc.blank") : textures.get(i));
 
             for (Vertex old : objectVertices) {
-                Vector2f coords = new Vector2f(((((float) member.x) / texturePacker.getAtlas().getAsBufferedImage().getWidth()) + (old.texCoord.x * member.width / texturePacker.getAtlas().getAsBufferedImage().getWidth())),
-                        ((((float) member.y) / texturePacker.getAtlas().getAsBufferedImage().getHeight()) + (old.texCoord.y * member.height / texturePacker.getAtlas().getAsBufferedImage().getHeight())));
+                Vector2f coords = new Vector2f(((((float) member.x) / texturePacker.getAtlas().getWidth()) + (old.texCoord.x * member.width / texturePacker.getAtlas().getWidth())),
+                        ((((float) member.y) / texturePacker.getAtlas().getHeight()) + (old.texCoord.y * member.height / texturePacker.getAtlas().getHeight())));
 
                 flatVertices.add(new Vertex(old.pos, old.color, coords));
             }

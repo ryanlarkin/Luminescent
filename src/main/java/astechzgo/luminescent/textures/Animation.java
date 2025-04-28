@@ -38,7 +38,11 @@ public class Animation extends Texture {
 	private final List<Texture> frames = new ArrayList<>();
 	
 	public Animation(String textureName, int count) {
-		super(textureName, toCombinedImage(textureName, count));
+		this(textureName, count, toCombinedImage(textureName, count));
+	}
+
+	public Animation(String textureName, int count, BufferedImage combinedImage) {
+		super(textureName, toByteBuffer(combinedImage), combinedImage.getWidth(), combinedImage.getHeight());
 
 		for(int i = 0; i < count; i++) {
 			frames.add(TextureList.findTexture(textureName + "$" + i));
@@ -53,8 +57,10 @@ public class Animation extends Texture {
 	    Image[] images = new BufferedImage[count];
 	    
         for(int i = 0; i < count; i++) {
-            images[i] = toImage(imageLoc + "$" + i);
-        }
+            ImageData textureData = loadImage(imageLoc + "$" + i);
+			images[i] = convertToBufferedImage(textureData);
+			textureData.free();
+		}
         
         int wid = images[0].getWidth(null) * count;
         int height = images[0].getHeight(null);
