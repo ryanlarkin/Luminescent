@@ -86,7 +86,7 @@ public class TexturePacker {
         ByteBuffer imageData = MemoryUtil.memAlloc(width * height * 4);
         
         for(AtlasMember member : atlasMembers) {
-            ImageUtils.memCopy2d(member.texture.getAsByteBuffer(), imageData, member.width, member.height, member.x, member.y, width, 4);
+            ImageUtils.memCopy2d(member.texture.getData(), imageData, member.width, member.height, member.x, member.y, width, 4);
         }
         
         atlas = new Texture("texture-atlas", imageData, width, height);

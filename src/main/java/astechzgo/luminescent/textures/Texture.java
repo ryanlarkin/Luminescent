@@ -2,10 +2,10 @@ package astechzgo.luminescent.textures;
 
 import static astechzgo.luminescent.utils.SystemUtils.getResourceAsURL;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryUtil;
@@ -15,8 +15,6 @@ public class Texture {
 	private final ImageData imageData;
 	
 	private final String name;
-
-	private BufferedImage bufferedImage;
 	
 	public Texture(String textureName) {
 		this(textureName, loadImage(textureName));
@@ -28,7 +26,7 @@ public class Texture {
 
 	private Texture(String textureName, ImageData imageData) {
 		this.name = textureName;
-		this.imageData = imageData;
+		this.imageData = Objects.requireNonNull(imageData);
 
 		TextureList.addTexture(this);
 	}
@@ -38,33 +36,6 @@ public class Texture {
 		public void free() {
 			MemoryUtil.memFree(data);
 		}
-	}
-
-	/**
-	 * Convert BufferedImage to ByteBuffer
-	 *
-	 * @param image
-	 *            The BufferedImage to convert
-	 * @return The converted image
-	 */
-	public static ByteBuffer toByteBuffer(BufferedImage image) {
-		int[] pixels = new int[image.getWidth() * image.getHeight()];
-        image.getRGB(0, 0, image.getWidth(), image.getHeight(), pixels, 0, image.getWidth());
-        ByteBuffer buffer = MemoryUtil.memAlloc(image.getWidth() * image.getHeight() * 4); //4 for RGBA, 3 for RGB
-
-        for(int y = 0; y < image.getHeight(); y++){
-            for(int x = 0; x < image.getWidth(); x++){
-                int pixel = pixels[y * image.getWidth() + x];
-                buffer.put((byte) ((pixel >> 16) & 0xFF));     // Red component
-                buffer.put((byte) ((pixel >> 8) & 0xFF));      // Green component
-                buffer.put((byte) (pixel & 0xFF));               // Blue component
-                buffer.put((byte) ((pixel >> 24) & 0xFF));    // Alpha component. Only for RGBA
-            }
-        }
-
-        buffer.flip(); //FOR THE LOVE OF GOD DO NOT FORGET THIS
-
-        return buffer;
 	}
 
 	protected static ImageData loadImage(String imageLoc) {
@@ -92,32 +63,8 @@ public class Texture {
             throw new RuntimeException(e);
         }
 	}
-
-	protected static BufferedImage convertToBufferedImage(ImageData imageData) {
-		BufferedImage image = new BufferedImage(imageData.width, imageData.height, BufferedImage.TYPE_INT_ARGB);
-		for (int i = 0; i < imageData.height; i++) {
-			for (int j = 0; j < imageData.width; j++) {
-				// Convert to unsigned values
-				int red = imageData.data.get() & 0xFF;
-				int blue = imageData.data.get() & 0xFF;
-				int green = imageData.data.get() & 0xFF;
-				int alpha = imageData.data.get() & 0xFF;
-				int colour = alpha << 24 | red << 16 | green << 8 | blue;
-				image.setRGB(j, i, colour);
-			}
-		}
-		imageData.data.rewind();
-		return image;
-	}
 	
-	public BufferedImage getAsBufferedImage() {
-		if (bufferedImage == null) {
-			bufferedImage = convertToBufferedImage(imageData);
-		}
-		return bufferedImage;
-	}
-	
-	public ByteBuffer getAsByteBuffer() {
+	public ByteBuffer getData() {
 		return imageData.data;
 	}
 

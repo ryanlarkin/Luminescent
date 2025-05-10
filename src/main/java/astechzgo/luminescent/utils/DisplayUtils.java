@@ -3,10 +3,7 @@ package astechzgo.luminescent.utils;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -138,7 +135,7 @@ public class DisplayUtils {
 		int i = 0;
 		for (String name : nIcon) {
 			Texture texture = TextureList.findTexture(name);
-			ByteBuffer buffer = texture.getAsByteBuffer();
+			ByteBuffer buffer = texture.getData();
 			int width = texture.getWidth();
 			int height = texture.getHeight();
 			

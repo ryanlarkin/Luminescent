@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import astechzgo.luminescent.coordinates.ScaledWindowCoordinates;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
@@ -338,7 +337,7 @@ public class Vulkan {
         try(MemoryStack stack = MemoryStack.stackPush()) {
             Texture texture = texturePacker.getAtlas();
 
-            ByteBuffer pixels = texture.getAsByteBuffer();
+            ByteBuffer pixels = texture.getData();
             int width = texture.getWidth();
             int height = texture.getHeight();
             int imageSize = width * height * 4;
