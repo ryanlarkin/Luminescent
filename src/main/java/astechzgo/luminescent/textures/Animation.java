@@ -1,9 +1,8 @@
 package astechzgo.luminescent.textures;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.image.BufferedImage;
+import astechzgo.luminescent.utils.ImageUtils;
+import org.lwjgl.system.MemoryUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
@@ -41,45 +40,35 @@ public class Animation extends Texture {
 		this(textureName, count, toCombinedImage(textureName, count));
 	}
 
-	public Animation(String textureName, int count, BufferedImage combinedImage) {
-		super(textureName, toByteBuffer(combinedImage), combinedImage.getWidth(), combinedImage.getHeight());
+	private Animation(String textureName, int count, ImageData combinedImage) {
+		super(textureName, combinedImage.data(), combinedImage.width(), combinedImage.height());
 
 		for(int i = 0; i < count; i++) {
 			frames.add(TextureList.findTexture(textureName + "$" + i));
 		}
 	}
 	
-	private static BufferedImage toCombinedImage(String imageLoc, int count) {
-	    if(count <= 0) {
-	        return null;
-	    }
-	    
-	    Image[] images = new BufferedImage[count];
-	    
+	private static ImageData toCombinedImage(String imageLoc, int count) {
+		if (count <= 0) {
+			throw new IllegalArgumentException("Animation image count must be positive");
+		}
+
+		ImageData[] images = new ImageData[count];
+
         for(int i = 0; i < count; i++) {
-            ImageData textureData = loadImage(imageLoc + "$" + i);
-			images[i] = convertToBufferedImage(textureData);
-			textureData.free();
+			images[i] = loadImage(imageLoc + "$" + i);
 		}
         
-        int wid = images[0].getWidth(null) * count;
-        int height = images[0].getHeight(null);
-        //create a new buffer and draw two image into the new image
-        BufferedImage newImage = new BufferedImage(wid,height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 = newImage.createGraphics();
-        Color oldColor = g2.getColor();
-        //fill background
-        g2.setPaint(new Color(0.0f, 0.0f, 0.0f, 0.0f));
-        g2.fillRect(0, 0, wid, height);
-        //draw image
-        g2.setColor(oldColor);
-        
-        for(int i = 0; i < count; i++) {
-            g2.drawImage(images[i], i * images[0].getWidth(null), 0, null);
-        }
-        g2.dispose();
-        
-        return newImage;
+        int width = images[0].width() * count;
+        int height = images[0].height();
+
+		ImageData newImage = new ImageData(MemoryUtil.memAlloc(width * height * 4), width, height);
+		for (int i = 0; i < count; i++) {
+			ImageUtils.memCopy2d(images[i].data(), newImage.data(), images[0].width(), height, i * images[0].width(), width, 4);
+			images[i].free();
+		}
+
+		return newImage;
 	}
 	
 	public Texture getCurrent() {
