@@ -1,8 +1,9 @@
 package astechzgo.luminescent.textures;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
+import astechzgo.luminescent.utils.ImageUtils;
+import org.lwjgl.system.MemoryUtil;
+
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -82,22 +83,13 @@ public class TexturePacker {
     }
     
     private void buildTexture(Set<AtlasMember> atlasMembers, int width, int height) {
-        //create a new buffer and draw two image into the new image
-        BufferedImage newImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 = newImage.createGraphics();
-        Color oldColor = g2.getColor();
-        //fill background
-        g2.setPaint(new Color(0.0f, 0.0f, 0.0f, 0.0f));
-        g2.fillRect(0, 0, width, height);
-        //draw image
-        g2.setColor(oldColor);
+        ByteBuffer imageData = MemoryUtil.memAlloc(width * height * 4);
         
         for(AtlasMember member : atlasMembers) {
-            g2.drawImage(member.texture.getAsBufferedImage(), member.x, member.y, null);
+            ImageUtils.memCopy2d(member.texture.getAsByteBuffer(), imageData, member.width, member.height, member.x, member.y, width, 4);
         }
-        g2.dispose();
         
-        atlas = new Texture("texture-atlas", Texture.toByteBuffer(newImage), newImage.getWidth(), newImage.getHeight());
+        atlas = new Texture("texture-atlas", imageData, width, height);
     }
     
     public Texture getAtlas() {
@@ -120,7 +112,7 @@ public class TexturePacker {
         return new HashSet<>(atlasMembers);
     }
     
-    public class AtlasMember  {
+    public static class AtlasMember  {
         
         private float s = -1, t = -1;
         public final int x, y;

@@ -64,7 +64,7 @@ public class Animation extends Texture {
 
 		ImageData newImage = new ImageData(MemoryUtil.memAlloc(width * height * 4), width, height);
 		for (int i = 0; i < count; i++) {
-			ImageUtils.memCopy2d(images[i].data(), newImage.data(), images[0].width(), height, i * images[0].width(), width, 4);
+			ImageUtils.memCopy2d(images[i].data(), newImage.data(), images[0].width(), height, i * images[0].width(), 0, width, 4);
 			images[i].free();
 		}
 
