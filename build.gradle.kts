@@ -4,9 +4,9 @@ plugins {
 }
 
 buildscript {
-	extra["lwjglVersion"] = "3.3.6"
+	extra["lwjglVersion"] = "3.4.0"
 	extra["jomlVersion"] = "1.10.8"
-	extra["gsonVersion"] = "2.11.0"
+	extra["gsonVersion"] = "2.13.2"
 }
 
 repositories {
@@ -84,6 +84,6 @@ java {
 }
 
 tasks.wrapper {
-	gradleVersion = "8.12"
+	gradleVersion = "9.3.0"
 	distributionType = Wrapper.DistributionType.ALL
 }
