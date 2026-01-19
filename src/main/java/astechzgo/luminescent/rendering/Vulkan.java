@@ -2198,15 +2198,27 @@ public class Vulkan {
 
     private RawImage readPixelsToArray() {
         try(MemoryStack stack = MemoryStack.stackPush()) {
+            boolean copyOnly;
+
             VkFormatProperties targetFormatProps = VkFormatProperties.malloc(stack);
-            VK10.vkGetPhysicalDeviceFormatProperties(physicalDevice, swapChainImageFormat, targetFormatProps);
+            VK10.vkGetPhysicalDeviceFormatProperties(physicalDevice, VK10.VK_FORMAT_R8G8B8A8_SRGB, targetFormatProps);
+
+            if(swapChainImageFormat == VK10.VK_FORMAT_R8G8B8A8_SRGB) {
+                copyOnly = true;
+            }
+            else {
+                boolean bltLinear = (targetFormatProps.linearTilingFeatures() & VK10.VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0;
+                boolean bltOptimal = (targetFormatProps.optimalTilingFeatures() & VK10.VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0;
+
+                copyOnly = !bltLinear && !bltOptimal;
+            }
 
             long[] firstImageAddress = new long[] { 0 };
             long[] firstImageAllocationAddress = new long[] { 0 };
 
             long srcImage = swapChainImages[imageIndex];
 
-            createImage(swapChainExtent.width(), swapChainExtent.height(), swapChainImageFormat,
+            createImage(swapChainExtent.width(), swapChainExtent.height(), VK10.VK_FORMAT_R8G8B8A8_SRGB,
                     VK10.VK_IMAGE_TILING_LINEAR, VK10.VK_IMAGE_LAYOUT_UNDEFINED, VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, firstImageAddress, firstImageAllocationAddress);
 
@@ -2244,8 +2256,35 @@ public class Vulkan {
                         .height(swapChainExtent.height())
                         .depth(1));
 
-            VK10.vkCmdCopyImage(commandBuffer, srcImage, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, firstImageAddress[0],
-                    VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, imageCopyRegion);
+            if(copyOnly) {
+                VK10.vkCmdCopyImage(commandBuffer, srcImage, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, firstImageAddress[0],
+                        VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, imageCopyRegion);
+            }
+            else {
+                VkImageBlit.Buffer imageBlitRegion = VkImageBlit.calloc(1, stack)
+                        .srcSubresource(VkImageSubresourceLayers.malloc(stack)
+                            .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
+                            .baseArrayLayer(0)
+                            .mipLevel(0)
+                            .layerCount(1))
+                        .srcOffsets(VkOffset3D.calloc(2, stack).position(1)
+                                .x(swapChainExtent.width())
+                                .y(swapChainExtent.height())
+                                .z(1).position(0))
+                        .dstSubresource(VkImageSubresourceLayers.malloc(stack)
+                                .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
+                                .mipLevel(0)
+                                .baseArrayLayer(0)
+                                .layerCount(1))
+                        .dstOffsets(VkOffset3D.calloc(2, stack).position(1)
+                                .x(swapChainExtent.width())
+                                .y(swapChainExtent.height())
+                                .z(1).position(0));
+
+                VK10.vkCmdBlitImage(commandBuffer, srcImage, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, firstImageAddress[0],
+                        VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, imageBlitRegion, VK10.VK_FILTER_NEAREST);
+            }
+
 
             transitionImageLayout(commandBuffer, firstImageAddress[0], VK10.VK_ACCESS_TRANSFER_WRITE_BIT, VK10.VK_ACCESS_TRANSFER_READ_BIT,
                     VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK10.VK_IMAGE_LAYOUT_GENERAL,
