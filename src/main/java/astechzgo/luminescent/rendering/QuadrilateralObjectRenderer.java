@@ -25,9 +25,6 @@ public class QuadrilateralObjectRenderer implements IObjectRenderer {
 	protected WindowCoordinates c;
 	protected WindowCoordinates d;
 
-	protected int oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-	protected int oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-	
 	protected Matrix4f model = new Matrix4f();
 
 	protected boolean doLighting = true;
@@ -70,14 +67,14 @@ public class QuadrilateralObjectRenderer implements IObjectRenderer {
 
 	@Override
 	public void resize() {
-		oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-		oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
+		double widthOffset = (double)DisplayUtils.widthOffset / DisplayUtils.getDisplayWidth() * DisplayUtils.getDisplayFramebufferWidth();
+		double heightOffset = (double)DisplayUtils.heightOffset / DisplayUtils.getDisplayHeight() * DisplayUtils.getDisplayFramebufferHeight();
 
-        ScaledWindowCoordinates loc = new ScaledWindowCoordinates(this.getCoordinates());
-        Vector3f location = new Vector3f((float)loc.getScaledWindowCoordinatesX() + DisplayUtils.widthOffset, (float)loc.getScaledWindowCoordinatesY()  + DisplayUtils.heightOffset, 0.0f);
+		ScaledWindowCoordinates loc = new ScaledWindowCoordinates(this.getCoordinates());
+        Vector3f location = new Vector3f((float)(loc.getScaledWindowCoordinatesX() + widthOffset), (float)(loc.getScaledWindowCoordinatesY() + heightOffset), 0.0f);
 
-        Vector3f scale = new Vector3f((((float)DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2) / (float)Camera.CAMERA_WIDTH),
-			(((float)DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2) / (float)Camera.CAMERA_HEIGHT), 1.0f);
+        Vector3f scale = new Vector3f(((float)(DisplayUtils.getDisplayFramebufferWidth() - widthOffset * 2) / (float)Camera.CAMERA_WIDTH),
+			((float)(DisplayUtils.getDisplayFramebufferHeight() - heightOffset * 2) / (float)Camera.CAMERA_HEIGHT), 1.0f);
 
 		this.model = new Matrix4f().translation(location).scale(scale);
 	}

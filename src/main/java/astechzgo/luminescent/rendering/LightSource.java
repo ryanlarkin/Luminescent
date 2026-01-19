@@ -80,6 +80,8 @@ public class LightSource {
     }
 
     public float getScaledRadius() {
-        return (float) Math.round((double) radius / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2));
+        double widthOffset = (double)DisplayUtils.widthOffset / DisplayUtils.getDisplayWidth() * DisplayUtils.getDisplayFramebufferWidth();
+
+        return (float) Math.round((double) radius / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayFramebufferWidth() - widthOffset * 2));
     }
 }

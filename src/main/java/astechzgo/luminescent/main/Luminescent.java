@@ -34,7 +34,7 @@ import static astechzgo.luminescent.utils.DisplayUtils.*;
 
 public class Luminescent
 {
-	public static final boolean DEBUG = true;
+	public static final boolean DEBUG = false;
     
 	public static Player thePlayer;
 	

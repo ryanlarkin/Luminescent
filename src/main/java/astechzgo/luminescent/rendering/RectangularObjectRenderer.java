@@ -21,9 +21,6 @@ public class RectangularObjectRenderer extends QuadrilateralObjectRenderer {
 	protected int scaledWidth;
 	protected int scaledHeight;
 
-	protected int oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-	protected int oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-
 	public RectangularObjectRenderer(WindowCoordinates coordinates, double width, double height, Texture texture) {
 		super(new WindowCoordinates(coordinates.getWindowCoordinatesX(), coordinates.getWindowCoordinatesY()),  new WindowCoordinates(coordinates.getWindowCoordinatesX() + width, coordinates.getWindowCoordinatesY()), new WindowCoordinates(coordinates.getWindowCoordinatesX() + width, coordinates.getWindowCoordinatesY() + height), new WindowCoordinates(coordinates.getWindowCoordinatesX(), coordinates.getWindowCoordinatesY() + height), texture);
 		

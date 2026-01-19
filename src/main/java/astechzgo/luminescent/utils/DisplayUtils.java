@@ -103,6 +103,14 @@ public class DisplayUtils {
 		updateDisplayInfo(true);
 
 		GLFW.glfwSetWindowMonitor(handle, monitor, displayX, displayY, monitorWidth, monitorHeight, monitorRefreshRate);
+
+		try(MemoryStack stack = MemoryStack.stackPush()) {
+			IntBuffer fbw = stack.mallocInt(1);
+			IntBuffer fbh = stack.mallocInt(1);
+			GLFW.glfwGetFramebufferSize(handle, fbw, fbh);
+			displayFramebufferWidth = fbw.get(0);
+			displayFramebufferHeight = fbh.get(0);
+		}
 	}
 
 	public static void setWindowedMode(int width, int height) {
@@ -115,6 +123,14 @@ public class DisplayUtils {
 
 		GLFW.glfwRestoreWindow(handle);
 		GLFW.glfwSetWindowMonitor(handle, NULL, displayX, displayY, width, height, monitorRefreshRate);
+
+		try(MemoryStack stack = MemoryStack.stackPush()) {
+			IntBuffer fbw = stack.mallocInt(1);
+			IntBuffer fbh = stack.mallocInt(1);
+			GLFW.glfwGetFramebufferSize(handle, fbw, fbh);
+			displayFramebufferWidth = fbw.get(0);
+			displayFramebufferHeight = fbh.get(0);
+		}
 	}
 
 	/**
@@ -447,6 +463,14 @@ public class DisplayUtils {
 
 	        displayWidth = mode.WIDTH;
 	        displayHeight = mode.HEIGHT;
+
+			try(MemoryStack stack = MemoryStack.stackPush()) {
+				IntBuffer fbw = stack.mallocInt(1);
+				IntBuffer fbh = stack.mallocInt(1);
+				GLFW.glfwGetFramebufferSize(handle, fbw, fbh);
+				displayFramebufferWidth = fbw.get(0);
+				displayFramebufferHeight = fbh.get(0);
+			}
 	        
 	        widthOffset = Math.max(0, (displayWidth - (displayHeight / 9 * 16)) / 2);
 			if(widthOffset == 0)

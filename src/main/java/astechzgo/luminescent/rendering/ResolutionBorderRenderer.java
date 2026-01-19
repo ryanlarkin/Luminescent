@@ -40,25 +40,25 @@ public class ResolutionBorderRenderer extends RectangularObjectRenderer {
         super.b = new WindowCoordinates(coordinates.getWindowCoordinatesX() + width, coordinates.getWindowCoordinatesY());
         super.c = new WindowCoordinates(coordinates.getWindowCoordinatesX() + width, coordinates.getWindowCoordinatesY() + height);
         super.d = new WindowCoordinates(coordinates.getWindowCoordinatesX(), coordinates.getWindowCoordinatesY() + height);
+
+        double widthOffset = (double)DisplayUtils.widthOffset / DisplayUtils.getDisplayWidth() * DisplayUtils.getDisplayFramebufferWidth();
+        double heightOffset = (double)DisplayUtils.heightOffset / DisplayUtils.getDisplayHeight() * DisplayUtils.getDisplayFramebufferHeight();
         
-        oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-        oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-        
-        int x = (int) new ScaledWindowCoordinates(coordinates).getScaledWindowCoordinatesX() + DisplayUtils.widthOffset;
-        int y = (int) new ScaledWindowCoordinates(coordinates).getScaledWindowCoordinatesY() + DisplayUtils.heightOffset;
+        int x = (int) (new ScaledWindowCoordinates(coordinates).getScaledWindowCoordinatesX() + widthOffset);
+        int y = (int) (new ScaledWindowCoordinates(coordinates).getScaledWindowCoordinatesY() + heightOffset);
         
         if(this.getCoordinates().getWindowCoordinatesX() == -1) {
             x = 0;
         }
         else if(this.getCoordinates().getWindowCoordinatesX() == Camera.CAMERA_WIDTH + 1) {
-            x = DisplayUtils.getDisplayWidth();
+            x = DisplayUtils.getDisplayFramebufferWidth();
         }
         
         if(this.getCoordinates().getWindowCoordinatesY() == -1) {
             y = 0;
         }
         else if(this.getCoordinates().getWindowCoordinatesY() == Camera.CAMERA_HEIGHT + 1) {
-            y = DisplayUtils.getDisplayHeight();
+            y = DisplayUtils.getDisplayFramebufferHeight();
         }
         
         ScaledWindowCoordinates loc = new ScaledWindowCoordinates(x, y);
@@ -67,14 +67,14 @@ public class ResolutionBorderRenderer extends RectangularObjectRenderer {
         
         Matrix4f model = new Matrix4f().translation(location);
         
-        float scaleFactor = (float) (1.0 / Camera.CAMERA_WIDTH * DisplayUtils.getDisplayWidth());
+        float scaleFactor = (float) (1.0 / Camera.CAMERA_WIDTH * DisplayUtils.getDisplayFramebufferWidth());
         
         if(leftRight) {
             if(DisplayUtils.widthOffset == 0) {
                 model.scale(0.0f);
             }
             else {
-                model.scale((float) (DisplayUtils.widthOffset /  width), scaleFactor, 1.0f);
+                model.scale((float) (widthOffset /  width), scaleFactor, 1.0f);
             }
         }
         else {
@@ -82,7 +82,7 @@ public class ResolutionBorderRenderer extends RectangularObjectRenderer {
                 model.scale(0.0f);
             }
             else {
-                model.scale(scaleFactor, (float) (DisplayUtils.heightOffset /  height), 1.0f);
+                model.scale(scaleFactor, (float) (heightOffset /  height), 1.0f);
             }
         }
         

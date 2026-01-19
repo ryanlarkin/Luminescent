@@ -24,9 +24,6 @@ public class CircularObjectRenderer implements IObjectRenderer {
 
 	protected int scaledRadius;
 
-	protected int oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-	protected int oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-
 	protected Texture texture;
 
 	protected double rotation = 0.0;
@@ -69,15 +66,15 @@ public class CircularObjectRenderer implements IObjectRenderer {
 
 	@Override
 	public void resize() {
-		oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-		oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-		
-        ScaledWindowCoordinates loc = new ScaledWindowCoordinates(coordinates);
-        Vector3f location = new Vector3f((float)loc.getScaledWindowCoordinatesX() + DisplayUtils.widthOffset, (float)loc.getScaledWindowCoordinatesY()  + DisplayUtils.heightOffset, 0.0f);
+		double widthOffset = (double)DisplayUtils.widthOffset / DisplayUtils.getDisplayWidth() * DisplayUtils.getDisplayFramebufferWidth();
+		double heightOffset = (double)DisplayUtils.heightOffset / DisplayUtils.getDisplayHeight() * DisplayUtils.getDisplayFramebufferHeight();
+
+		ScaledWindowCoordinates loc = new ScaledWindowCoordinates(coordinates);
+        Vector3f location = new Vector3f((float)(loc.getScaledWindowCoordinatesX() + widthOffset), (float)(loc.getScaledWindowCoordinatesY()  + heightOffset), 0.0f);
         
         Quaternionf rotate = new Quaternionf().rotateZ((float) Math.toRadians(rotation));
 
-		this.model = new Matrix4f().translation(location).rotateAround(rotate, 0, 0, 0).scale((float) (1.0 / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2)));
+		this.model = new Matrix4f().translation(location).rotateAround(rotate, 0, 0, 0).scale((float) (1.0 / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayFramebufferWidth() - widthOffset * 2)));
 	}
 
 	@Override

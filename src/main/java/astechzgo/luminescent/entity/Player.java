@@ -10,6 +10,7 @@ import java.nio.DoubleBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import astechzgo.luminescent.coordinates.AbsoluteCoordinates;
 import astechzgo.luminescent.rendering.LightSource;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -43,7 +44,7 @@ public class Player extends LivingEntity {
 	private double lastDelta;
 	
 	private double lastControllerDelta = 0;
-	private ScaledWindowCoordinates lastMouseCoords;
+	private AbsoluteCoordinates lastMouseCoords;
 
 	private final LightSource light;
 	
@@ -90,7 +91,7 @@ public class Player extends LivingEntity {
 			return rotation;
 		}
 
-		ScaledWindowCoordinates mouseCoords = null;
+		AbsoluteCoordinates mouseCoords = null;
 		
 		try(MemoryStack stack = MemoryStack.stackPush()) {	
 			DoubleBuffer mxpos = stack.mallocDouble(1);
@@ -98,7 +99,7 @@ public class Player extends LivingEntity {
 		
 			GLFW.glfwGetCursorPos(DisplayUtils.getHandle(), mxpos, mypos);
 		
-			mouseCoords = new ScaledWindowCoordinates(mxpos.get(0) - DisplayUtils.widthOffset, mypos.get(0) - DisplayUtils.heightOffset);
+			mouseCoords = new AbsoluteCoordinates(mxpos.get(0) + DisplayUtils.getDisplayX(), mypos.get(0) + DisplayUtils.getDisplayY());
 		
 			if(mouseCoords.equals(lastMouseCoords)) 
 				return rotation;
@@ -369,15 +370,15 @@ public class Player extends LivingEntity {
 		public void resize() {
 			coordinates = new WindowCoordinates(Camera.CAMERA_WIDTH / 2, Camera.CAMERA_HEIGHT / 2);
 
-			oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-			oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-			
+			double widthOffset = (double) (DisplayUtils.widthOffset * DisplayUtils.getDisplayFramebufferWidth()) / DisplayUtils.getDisplayWidth();
+			double heightOffset = (double) (DisplayUtils.heightOffset * DisplayUtils.getDisplayFramebufferHeight()) / DisplayUtils.getDisplayHeight();
+
 			ScaledWindowCoordinates loc = new ScaledWindowCoordinates(coordinates);
-			Vector3f location = new Vector3f((float)loc.getScaledWindowCoordinatesX() + DisplayUtils.widthOffset, (float)loc.getScaledWindowCoordinatesY()  + DisplayUtils.heightOffset, 0.0f);
+			Vector3f location = new Vector3f((float)(loc.getScaledWindowCoordinatesX() + widthOffset), (float)(loc.getScaledWindowCoordinatesY()  + heightOffset), 0.0f);
 			
 			Quaternionf rotate = new Quaternionf().rotateZ((float) Math.toRadians(rotation));
 
-			this.model = new Matrix4f().translation(location).rotateAround(rotate, 0, 0, 0).scale((float) (1.0 / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2)));
+			this.model = new Matrix4f().translation(location).rotateAround(rotate, 0, 0, 0).scale((float) (1.0 / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayFramebufferWidth() - widthOffset * 2)));
 		}
 		
 		private void setRotation(double rotation) {

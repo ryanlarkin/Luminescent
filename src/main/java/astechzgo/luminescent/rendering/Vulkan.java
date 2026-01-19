@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import astechzgo.luminescent.coordinates.GameCoordinates;
+import astechzgo.luminescent.coordinates.ScaledWindowCoordinates;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
@@ -1945,7 +1947,7 @@ public class Vulkan {
 
         UniformBufferObjectView viewUBO = new UniformBufferObjectView();
         viewUBO.view = viewUBO.view.identity();
-        viewUBO.projection = viewUBO.projection.ortho(0, DisplayUtils.getDisplayWidth(), 0, DisplayUtils.getDisplayHeight(), 1, -1, false);
+        viewUBO.projection = viewUBO.projection.ortho(0, DisplayUtils.getDisplayFramebufferWidth(), 0, DisplayUtils.getDisplayFramebufferHeight(), 1, -1, false);
 
         try(MemoryStack stack = MemoryStack.stackPush()) {
             PointerBuffer data = stack.mallocPointer(3);

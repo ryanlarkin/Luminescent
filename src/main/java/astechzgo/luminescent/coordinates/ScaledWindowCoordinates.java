@@ -29,26 +29,26 @@ public class ScaledWindowCoordinates extends AbsoluteCoordinates {
 		if(converted != null)
 			return converted.getAbsoluteX();
 		else
-			return scaledWindowCoordinatesX + DisplayUtils.widthOffset + DisplayUtils.getDisplayX();
+			return scaledWindowCoordinatesX / DisplayUtils.getDisplayFramebufferWidth() * DisplayUtils.getDisplayWidth() + DisplayUtils.widthOffset + DisplayUtils.getDisplayX();
 	}
 	
 	public double getAbsoluteY() {
 		if(converted != null)
 			return converted.getAbsoluteY();
 		else
-			return scaledWindowCoordinatesY + DisplayUtils.heightOffset + DisplayUtils.getDisplayY();
+			return scaledWindowCoordinatesY / DisplayUtils.getDisplayFramebufferHeight() * DisplayUtils.getDisplayHeight() + DisplayUtils.heightOffset + DisplayUtils.getDisplayY();
 	}
 	
 	public double getScaledWindowCoordinatesX() {
 		if(converted != null)
-			return converted.getAbsoluteX() - DisplayUtils.getDisplayX() - DisplayUtils.widthOffset;
+			return (converted.getAbsoluteX() - DisplayUtils.getDisplayX() - DisplayUtils.widthOffset)  / DisplayUtils.getDisplayWidth() * DisplayUtils.getDisplayFramebufferWidth();
 		else
 			return scaledWindowCoordinatesX;
 	}
 	
 	public double getScaledWindowCoordinatesY() {
 		if(converted != null)
-			return converted.getAbsoluteY() - DisplayUtils.getDisplayY() - DisplayUtils.heightOffset;
+			return (converted.getAbsoluteY() - DisplayUtils.getDisplayY() - DisplayUtils.heightOffset) / DisplayUtils.getDisplayHeight() * DisplayUtils.getDisplayFramebufferHeight();
 		else
 			return scaledWindowCoordinatesY;
 	}

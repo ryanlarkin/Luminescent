@@ -103,7 +103,7 @@ public class Font {
 
             int xpos = 0;
             // extra row to avoid writing out of bounds
-            ByteBuffer textureData = MemoryUtil.memAlloc(imageWidth * (imageHeight + 1));
+            ByteBuffer textureData = MemoryUtil.memCalloc(imageWidth * (imageHeight + 1));
             for (int i = 32; i < 256; i++) {
                 if (i == 127) continue;
 

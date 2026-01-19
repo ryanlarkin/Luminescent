@@ -160,14 +160,13 @@ public class Projectile extends LivingEntity {
         @Override
         public void resize() {
             super.resize();
-            
-            oldGameWidth = DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2;
-            oldGameHeight = DisplayUtils.getDisplayHeight() - DisplayUtils.heightOffset * 2;
-            
-            ScaledWindowCoordinates loc = new ScaledWindowCoordinates(this.getCoordinates());
-            Vector3f location = new Vector3f((float)loc.getScaledWindowCoordinatesX() + DisplayUtils.widthOffset, (float)loc.getScaledWindowCoordinatesY()  + DisplayUtils.heightOffset, 0.0f);
 
-			this.model = new Matrix4f().translation(location).scale(isAlive ? (float) (1.0 / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayWidth() - DisplayUtils.widthOffset * 2)) : 0);
+			double widthOffset = (double) (DisplayUtils.widthOffset * DisplayUtils.getDisplayFramebufferWidth()) / DisplayUtils.getDisplayWidth();
+			double heightOffset = (double) (DisplayUtils.heightOffset * DisplayUtils.getDisplayFramebufferHeight()) / DisplayUtils.getDisplayHeight();
+            ScaledWindowCoordinates loc = new ScaledWindowCoordinates(this.getCoordinates());
+            Vector3f location = new Vector3f((float)(loc.getScaledWindowCoordinatesX() + widthOffset), (float)(loc.getScaledWindowCoordinatesY() + heightOffset), 0.0f);
+
+			this.model = new Matrix4f().translation(location).scale(isAlive ? (float) (1.0 / Camera.CAMERA_WIDTH * (DisplayUtils.getDisplayFramebufferWidth() - widthOffset * 2)) : 0);
 
 			if(isAlive) {
       			light.setRadius(50);
