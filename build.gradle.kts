@@ -43,7 +43,7 @@ dependencies {
 
 tasks.jar {
 	manifest {
-		attributes(Pair("Main-Class", "astechzgo.luminescent.main.Main"))
+		attributes(Pair("Main-Class", "astechzgo.luminescent.main.Main"), Pair("Multi-Release", true))
 	}
 
 	from({
@@ -74,6 +74,7 @@ tasks.register<JavaExec>("run") {
 	group = "application"
 	classpath = files(tasks.jar)
 	mainClass = "astechzgo.luminescent.main.Main"
+	jvmArguments = listOf("--sun-misc-unsafe-memory-access=deny")
 }
 
 java {
