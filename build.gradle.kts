@@ -4,7 +4,7 @@ plugins {
 }
 
 buildscript {
-	extra["lwjglVersion"] = "3.4.0"
+	extra["lwjglVersion"] = "3.4.1"
 	extra["jomlVersion"] = "1.10.8"
 	extra["gsonVersion"] = "2.13.2"
 }
@@ -17,27 +17,28 @@ dependencies {
 	implementation("com.google.code.gson:gson:${project.extra["gsonVersion"]}")
 	implementation(platform("org.lwjgl:lwjgl-bom:${project.extra["lwjglVersion"]}"))
 
-	implementation("org.lwjgl", "lwjgl")
-	implementation("org.lwjgl", "lwjgl-glfw")
-	implementation("org.lwjgl", "lwjgl-jemalloc")
-	implementation("org.lwjgl", "lwjgl-openal")
-	implementation("org.lwjgl", "lwjgl-stb")
-	implementation("org.lwjgl", "lwjgl-vulkan")
-	implementation("org.lwjgl", "lwjgl-vma")
+	implementation("org.lwjgl:lwjgl")
+	implementation("org.lwjgl:lwjgl-glfw")
+	implementation("org.lwjgl:lwjgl-jemalloc")
+	implementation("org.lwjgl:lwjgl-openal")
+	implementation("org.lwjgl:lwjgl-stb")
+	implementation("org.lwjgl:lwjgl-vulkan")
+	implementation("org.lwjgl:lwjgl-vma")
+
 	listOf("natives-linux", "natives-macos", "natives-macos-arm64", "natives-windows")
 		.forEach { platform ->
-			runtimeOnly("org.lwjgl", "lwjgl", classifier = platform)
-			runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = platform)
-			runtimeOnly("org.lwjgl", "lwjgl-jemalloc", classifier = platform)
-			runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = platform)
-			runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = platform)
-			runtimeOnly("org.lwjgl", "lwjgl-vma", classifier = platform)
+			runtimeOnly("org.lwjgl:lwjgl::$platform")
+			runtimeOnly("org.lwjgl:lwjgl-glfw::$platform")
+			runtimeOnly("org.lwjgl:lwjgl-jemalloc::$platform")
+			runtimeOnly("org.lwjgl:lwjgl-openal::$platform")
+			runtimeOnly("org.lwjgl:lwjgl-stb::$platform")
+			runtimeOnly("org.lwjgl:lwjgl-vma::$platform")
 		}
 	listOf("natives-macos", "natives-macos-arm64").forEach { platform ->
-		runtimeOnly("org.lwjgl", "lwjgl-vulkan", classifier = platform)
+		runtimeOnly("org.lwjgl:lwjgl-vulkan::$platform")
 	}
 
-	implementation("org.joml", "joml", project.extra["jomlVersion"] as String)
+	implementation("org.joml:joml:${project.extra["jomlVersion"]}")
 }
 
 tasks.jar {
@@ -69,21 +70,19 @@ tasks.processResources {
 
 apply(from = "shaders.gradle.kts")
 
-task("run") {
-	doLast {
-		providers.javaexec {
-			classpath(tasks.jar)
-		}
-	}
-}.dependsOn(tasks.jar)
+tasks.register<JavaExec>("run") {
+	group = "application"
+	classpath = files(tasks.jar)
+	mainClass = "astechzgo.luminescent.main.Main"
+}
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(25)
 	}
 }
 
 tasks.wrapper {
-	gradleVersion = "9.3.0"
+	gradleVersion = "9.4.1"
 	distributionType = Wrapper.DistributionType.ALL
 }

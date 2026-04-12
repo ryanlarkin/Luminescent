@@ -34,10 +34,10 @@ buildscript {
 
     dependencies {
         classpath(platform("org.lwjgl:lwjgl-bom:${project.extra["lwjglVersion"]}"))
-        classpath("org.lwjgl", "lwjgl")
-        classpath("org.lwjgl", "lwjgl", classifier = lwjglNatives)
-        classpath("org.lwjgl", "lwjgl-shaderc")
-        classpath("org.lwjgl", "lwjgl-shaderc", classifier = lwjglNatives)
+        classpath("org.lwjgl:lwjgl")
+        classpath("org.lwjgl:lwjgl::$lwjglNatives")
+        classpath("org.lwjgl:lwjgl-shaderc")
+        classpath("org.lwjgl:lwjgl-shaderc::$lwjglNatives")
     }
 
     repositories {
