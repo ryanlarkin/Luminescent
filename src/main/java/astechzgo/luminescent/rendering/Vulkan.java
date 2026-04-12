@@ -138,7 +138,8 @@ public class Vulkan {
     };
 
     private final String[] deviceExtensions = {
-        KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        EXTFullScreenExclusive.VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME
     };
 
     private final VkDebugUtilsMessengerCallbackEXT debugCallback = VkDebugUtilsMessengerCallbackEXT.create(
@@ -1331,6 +1332,12 @@ public class Vulkan {
                 .imageArrayLayers(1)
                 .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK10.VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
+            VkSurfaceFullScreenExclusiveInfoEXT fullscreenCreateInfo = VkSurfaceFullScreenExclusiveInfoEXT.calloc(stack)
+                    .sType$Default()
+                    .fullScreenExclusive(EXTFullScreenExclusive.VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT);
+
+            createInfo.pNext(fullscreenCreateInfo);
+
             QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
             if(indices.graphicsFamily != indices.presentFamily) {
@@ -1582,22 +1589,22 @@ public class Vulkan {
     }
 
     private boolean checkDeviceExtensionSupport(VkPhysicalDevice device) {
-        try(MemoryStack stack = MemoryStack.stackPush()) {
-            int[] extensionCount = new int[] { 0 };
-            VK10.vkEnumerateDeviceExtensionProperties(device, (ByteBuffer)null, extensionCount, null);
+        int[] extensionCount = new int[] { 0 };
+        VK10.vkEnumerateDeviceExtensionProperties(device, (ByteBuffer)null, extensionCount, null);
 
-            VkExtensionProperties.Buffer availableExtensions = VkExtensionProperties.malloc(extensionCount[0], stack);
-            VK10.vkEnumerateDeviceExtensionProperties(device, (ByteBuffer)null, extensionCount, availableExtensions);
+        VkExtensionProperties.Buffer availableExtensions = VkExtensionProperties.malloc(extensionCount[0]);
+        VK10.vkEnumerateDeviceExtensionProperties(device, (ByteBuffer)null, extensionCount, availableExtensions);
 
-            Set<String> requiredExtensions = new HashSet<>(extensionCount[0]);
-            Collections.addAll(requiredExtensions, deviceExtensions);
+        Set<String> requiredExtensions = new HashSet<>(extensionCount[0]);
+        Collections.addAll(requiredExtensions, deviceExtensions);
 
-            while(availableExtensions.hasRemaining()) {
-                requiredExtensions.remove(availableExtensions.get().extensionNameString());
-            }
-
-            return requiredExtensions.isEmpty();
+        while(availableExtensions.hasRemaining()) {
+            requiredExtensions.remove(availableExtensions.get().extensionNameString());
         }
+
+        availableExtensions.free();
+
+        return requiredExtensions.isEmpty();
     }
 
     private QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
